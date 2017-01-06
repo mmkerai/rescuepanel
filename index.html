@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Rescue Node.js test script</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/index.js"></script>
+</head>
+<body>
+<h2><center>Rescue Node.js test script</center></h2>
+<p>&nbsp;</p>
+<div class="wrapper col-xs-12">
+	<div class="col-xs-2">
+		<div class='btn btn-primary' id='myname' onClick='showLoginForm()'>Log Me In</div>
+	</div>
+	<div class="col-xs-2">
+		<div class='btn btn-primary' onClick='getHierarchy()'>Get Hierarchy</div>
+	</div>
+	<div class="col-xs-2">
+		<div class='btn btn-primary' onClick='getAccount()'>Get Account</div>
+	</div>
+	<div class="col-xs-3">
+		<div class='btn btn-info' onClick='showNodeForm(1)'>Get Report By Channel</div>
+	</div>
+	<div class="col-xs-3">
+		<div class='btn btn-info' onClick='showNodeForm(0)'>Get Report By Node</div>
+	</div>
+</div>
+<p>&nbsp;</p>
+<script>loginForm()</script>
+<div class="wrapper col-xs-12">
+<form id="nodeid">
+	<div class="col-xs-3 col-xs-offset-3">
+		<label for="nodeid">ID:</label><input type="text" name="nodeID" id="nodeID" value=""></input>
+	</div>
+	<div class="col-xs-3">
+		<div class='btn btn-info' id='report'>Get Report</div>
+	</div>
+</form>
+</div>
+<p>&nbsp;</p>
+	<p class="text-center" id="error"></p>
+	<p class="text-center" id="message1"></p>
+	<p class="text-center" id="message2"></p>
+	<p class="text-center" id="message3"></p>
+</body>
+</html>
