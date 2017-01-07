@@ -37,6 +37,8 @@ $(document).ready(function() {
 	$('#nodeid').hide();
 	$("#signinform").hide();
 	
+	checkSignedIn();
+	
 	$('#signinform').submit(function(event) {
 		event.preventDefault();
 		var name = $('#username').val();
@@ -51,8 +53,8 @@ $(document).ready(function() {
 		$("#message1").html(data);
 	});
 	socket.on('signinResponse', function(data) {
-//		saveCookie("username", data.name, 1);	// save as cookie for 1 day
-//		saveCookie("password", data.pwd, 1);
+		saveCookie("username", data.name, 1);	// save as cookie for 1 day
+		saveCookie("password", data.pwd, 1);
 		$('#error').text("");
 		$('#myname').text(data.name);
 		$("#signinform").hide();
@@ -117,9 +119,63 @@ function showLoginForm()
 	$('#nodeid').hide();
 }
 
+function checkSignedIn()
+{
+	var name = readCookie("username");
+	var pwd = readCookie("password");
+//	console.log("User cookie: "+name+" and pwd "+pwd);
+	if(name == null || pwd == null)
+	{
+		$('#myname').text("Log Me In");
+		$("#signinform").show();
+	}
+	else
+	{
+		signin(name,pwd);
+	}
+}
+
 function signin(uname, pwd) {
 	var data = new Object();
 	data = {name: uname,pwd: pwd};
 //	console.log("Data object: "+data.name+" and "+data.pwd);
 	socket.emit('signinRequest', data);
+}
+
+function readCookie(name)
+{
+  name += '=';
+  var parts = document.cookie.split(/;\s*/);
+  for (var i = 0; i < parts.length; i++)
+  {
+    var part = parts[i];
+    if (part.indexOf(name) == 0)
+      return part.substring(name.length);
+  }
+  return null;
+}
+
+/*
+ * Saves a cookie for delay time. If delay is blank then no expiry.
+ * If delay is less than 100 then assumes it is days
+ * otherwise assume it is in seconds
+ */
+function saveCookie(name, value, delay)
+{
+  var date, expires;
+  if(delay)
+  {
+	  if(delay < 100)	// in days
+		  delay = delay*24*60*60*1000;	// convert days to milliseconds
+	  else
+		  delay = delay*1000;	// seconds to milliseconds
+
+	  date = new Date();
+	  date.setTime(date.getTime()+delay);	// delay must be in seconds
+	  expires = "; expires=" + date.toGMTString();		// convert unix date to string
+  }
+  else
+	  expires = "";
+
+  document.cookie = name+"="+value+expires+"; path=/";
 }

@@ -27,7 +27,7 @@ var APIUSERNAME;
 var APIUSERPWD;
 var USERS = [];
 var Hierarchy;		// Array of configured users in Rescue
-var LoggedInUsers = [];		// array of socket ids for all logged in users
+var LoggedInUsers;		// array of socket ids for all logged in users
 var AuthUsers = new Object();
 var ICSessions;
 var startIndex;
@@ -121,7 +121,7 @@ io.on('connection', function(socket){
 		else
 		{
 //			console.log("Save socket "+socket.id);
-			LoggedInUsers.push(socket.id);		// save the socket id so that updates can be sent
+			LoggedInUsers[socket.id] = true;		// save the socketid so that updates can be sent
 			io.sockets.sockets[user.name] = socket.id;
 			socket.emit('signinResponse',{name: user.name, pwd: user.pwd});
 		}
@@ -140,7 +140,8 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('getHierarchyRequest',function(data){
-		getApiData("getHierarchy.aspx","nodeType=CHANNEL",hierarchyCallback,socket);
+		if(isLoggedIn(socket))
+			getApiData("getHierarchy.aspx","nodeType=CHANNEL",hierarchyCallback,socket);
 	});
 });
 
@@ -156,7 +157,7 @@ getApiData("requestAuthCode.aspx","email="+APIUSERNAME+"&pwd="+APIUSERPWD,authco
 /*
  ************* Everything below this are functions **********************************
  */
- 
+
  // load list of users and their passwords
 function loadUserCredentials() {
 	var au = [];
@@ -172,10 +173,9 @@ function loadUserCredentials() {
 }
 
 function initialiseGlobals () {
-
-ICSessions = new Object();
-Hierarchy = new Array();		// Array of configured users in Rescue
-
+	ICSessions = new Array();
+	Hierarchy = new Array();		// Array of configured users in Rescue
+	LoggedInUsers = new Object();
 }
 
 function doStartOfDay() {
@@ -186,7 +186,7 @@ function postToArchive(postdata) {
 	var options = {
 		host : 'uber-electronics.com',
 		port : 443,
-		path : '/home/mkerai/APItriggers/h3gendofday.php',
+		path : '/home/mkerai/APItriggers/.php',
 		method : 'POST',
 		headers: {
           'Content-Type': 'text/plain',
@@ -212,6 +212,15 @@ function debugLog(name, dataobj) {
 		if(dataobj.hasOwnProperty(key))
 			console.log(key +":"+dataobj[key]);
 	}
+}
+
+function isLoggedIn(tsock) {
+	if(typeof(LoggedInUsers[tsock.id]) === 'undefined')
+	{
+		tsock.emit('errorResponse',"Please login");
+		return false;		
+	}
+	return true;
 }
 
 function Rescue_API_Request(method,params,callBackFunction) {
@@ -362,18 +371,17 @@ function reportCallback(data,tsock) {
 			icsession.start = head[startIndex];
 			icsession.end = head[endIndex];
 			icsession.response = head[waitIndex];
-			ICSessions[icsession.sessionID] = icsession;
+			ICSessions.push(icsession);		// add to list
 		}	
 		else
 			console.log("Not Instant Chat, it is: "+head[typeIndex]);
 	}
-	console.log("No. IC sessions: "+Object.keys(ICSessions).length);
+	console.log("No. IC sessions: "+ICSessions.length);
 	tsock.emit('report1Response',ICSessions);
 }
 
 function removeSocket(id, evname) {
-		console.log("Socket "+evname+" at "+ new Date().toString());
-		var index = LoggedInUsers.indexOf(id);
-		if(index >= 0) LoggedInUsers.splice(index, 1);	// remove from list of valid users
+	console.log("Socket "+evname+" at "+ new Date().toString());
+	LoggedInUsers[id] = undefined;		// remove from list of valid users
 }
 
