@@ -141,7 +141,24 @@ io.on('connection', function(socket){
 
 	socket.on('getHierarchyRequest',function(data){
 		if(isLoggedIn(socket))
-			getApiData("getHierarchy.aspx","nodeType=CHANNEL",hierarchyCallback,socket);
+			getApiData("getHierarchy.aspx","",hierarchyCallback,socket);
+	});
+	
+	socket.on('getReportByChannelRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				getApiData("setDateFormat.aspx","dateformat=DDMMYY",genericCallback,socket);
+				sleep(500);
+				getApiData("setReportArea.aspx","area=0",genericCallback,socket);
+				sleep(500);
+				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,genericCallback,socket);
+				sleep(500);
+				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",reportCallback,socket);
+			}
+		}
 	});
 });
 
@@ -182,6 +199,17 @@ function doStartOfDay() {
 	initialiseGlobals();	// zero all memory
 }
 
+function sleep(milliseconds) {
+	var start = new Date().getTime();
+	for(var i = 0; i < 1e7; i++)
+	{
+		if((new Date().getTime() - start) > milliseconds)
+		{
+			break;
+		}
+	}
+}
+
 function postToArchive(postdata) {
 	var options = {
 		host : 'uber-electronics.com',
@@ -220,6 +248,26 @@ function isLoggedIn(tsock) {
 		tsock.emit('errorResponse',"Please login");
 		return false;		
 	}
+	return true;
+}
+
+function isValidParams(params,tsock) {
+	if(params.id === undefined || !(params.id.match(/^[0-9]+$/) != null))
+	{
+		tsock.emit('errorResponse',"ID is incorrect");
+		return;		
+	}
+	if(params.bdate === undefined || validateDate(params.bdate) == false)
+	{
+		tsock.emit('errorResponse',"Start date is incorrect");
+		return;		
+	}
+	if(params.edate === undefined || validateDate(params.edate) == false)
+	{
+		tsock.emit('errorResponse',"End date is incorrect");
+		return;		
+	}		
+	
 	return true;
 }
 
@@ -354,12 +402,11 @@ function reportCallback(data,tsock) {
 		else if(head[i] == "Waiting Time")
 			waitIndex = i;	
 	}
-	console.log("Session index: "+typeIndex);
 	
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		tsession = arr[i];	
-		head = tsession.split("|");
+		var head = tsession.split("|");
 		if(head[typeIndex] == "Instant Chat")	// only interested in Instant Chats
 		{
 			var icsession = new ICSession();
@@ -377,7 +424,7 @@ function reportCallback(data,tsock) {
 			console.log("Not Instant Chat, it is: "+head[typeIndex]);
 	}
 	console.log("No. IC sessions: "+ICSessions.length);
-	tsock.emit('report1Response',ICSessions);
+	tsock.emit('getReportByChannelResponse',ICSessions);
 }
 
 function removeSocket(id, evname) {
@@ -385,3 +432,8 @@ function removeSocket(id, evname) {
 	LoggedInUsers[id] = undefined;		// remove from list of valid users
 }
 
+// validates string is format MM/DD/YYYY with year being 20xxx
+function validateDate(testdate) {
+    var date_regex = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(20)\d{2}$/ ;
+    return date_regex.test(testdate);
+}

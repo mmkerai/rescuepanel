@@ -9,24 +9,35 @@ function getHierarchy() {
 }
 
 function getReportByChannel() {
-	var cid = $('#nodeID').val();
-	socket.emit('getReportByChannelRequest',cid);
+	var nid = $('#nodeID').val();
+	var bdate = $('#bdate').val();
+	var edate = $('#edate').val();
+	var params = {"id":nid,"bdate":bdate,"edate":edate};
+	socket.emit('getReportByChannelRequest',params);
 }
 
 function getReportByNode() {
 	var nid = $('#nodeID').val();
-	socket.emit('getReportByNodeRequest',nid);
+	var bdate = $('#bdate').val();
+	var edate = $('#edate').val();
+	var params = {"id":nid,"bdate":bdate,"edate":edate};
+	socket.emit('getReportByNodeRequest',params);
 }
 
 function showNodeForm(id) {
-	var id = $('#nodeID').val();
+	var nid,bdate,edate,params;
 	if(id == 1)
 		$('#report').on("click",function() {
-			socket.emit('getReportByChannelRequest',id);			
+			getReportByChannel();
 		});
 	else
 		$('#report').on("click",function() {
-			socket.emit('getReportByNodeRequest',id);			
+			nid = $('#nodeID').val();
+			bdate = $('#bdate').val();
+			edate = $('#edate').val();
+			params = {"nid":nid,"bdate":bdate,"edate":edate};
+			console.log("report clicked. ID:"+nid);
+			socket.emit('getReportByNodeRequest',params);			
 		});
 	$('#nodeid').show(500);
 	$("#signinform").hide();
@@ -74,17 +85,24 @@ $(document).ready(function() {
 		$("#message1").html(str);
 	});
 	
-	socket.on('report1Response', function(data){		// this returns an array of objects
-	var report = "<table>";
+	socket.on('getReportByChannelResponse', function(data){		// this returns an array of objects
+		$("#message1").text("");
+		var report = "<table><tr><td>Session</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td><td>Resolved</td><td>Response</td>";
 		for(var i in data)
 		{
 			report += "<tr>";
 			report += "<td>"+data[i].sessionID+"</td>";
 			report += "<td>"+data[i].name+"</td>";
+			report += "<td>"+data[i].department+"</td>";
+			report += "<td>"+data[i].start+"</td>";
+			report += "<td>"+data[i].end+"</td>";
+			report += "<td>"+data[i].incident+"</td>";
+			report += "<td>"+data[i].resolved+"</td>";
+			report += "<td>"+data[i].response+"</td>";
 			report += "</tr>";
 		}
 		report += "</table>";
-		$("#message2").html(report);
+		$("#message1").html(report);
 	});
 
 });
