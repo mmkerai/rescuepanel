@@ -68,7 +68,7 @@ try
 	APIUSERNAME = EnVars.APIUSERNAME || 0;
 	APIUSERPWD = EnVars.APIUSERPWD || 0;
 	USERS = EnVars.USERS || 0;
-	debugLog("USER",USERS[0]);
+//	debugLog("USER",USERS[0]);
 }
 catch(e)
 {
@@ -114,7 +114,7 @@ io.on('connection', function(socket){
 		{
 			socket.emit('errorResponse',"Username not valid");
 		}
-		else if(AuthUsers[user.username] != user.password)
+		else if(validPassword(user.password,AuthUsers[user.username]) == false)
 		{
 			socket.emit('errorResponse',"Password not valid");
 		}
@@ -125,6 +125,7 @@ io.on('connection', function(socket){
 			io.sockets.sockets[user.username] = socket.id;
 			socket.emit('signinResponse',{username: user.username,password: user.password});
 		}
+
 	});
 
 	socket.on('disconnect', function(data){
@@ -133,6 +134,10 @@ io.on('connection', function(socket){
 
 	socket.on('end', function(data){
 		removeSocket(socket.id, "end");
+	});
+
+	socket.on('error', function(data){
+		console.log("Socket Error");
 	});
 
 	socket.on('connect_timeout', function(data){
@@ -189,7 +194,19 @@ function loadUserCredentials() {
 	console.log(Object.keys(AuthUsers).length +" user credentials loaded");
 }
 
-function initialiseGlobals () {
+function validPassword(plain,hashed) {
+
+	var hash = crypto.createHash('sha1');
+	hash.update(plain);
+	var hex = hash.digest('hex')
+//	console.log("Sha1 is:"+hex);
+	if(hex == hashed)
+		return true;
+	
+	return false;
+}
+
+function initialiseGlobals() {
 	ICSessions = new Array();
 	Hierarchy = new Array();		// Array of configured users in Rescue
 	LoggedInUsers = new Object();
@@ -323,7 +340,12 @@ function authcodeCallback(data) {
 		AUTHCODE = data.substring(n+9);
 //		console.log("Authcode is: "+AUTHCODE);
 	}
-//	console.log("Response is: "+data);
+	else
+	{
+		console.log("Response is: "+data);
+		console.log("Rescue ceredentials not valid, terminating!");
+		process.exit(1);
+	}
 }
 
 function genericCallback(data,tsock) {
@@ -405,7 +427,7 @@ function reportCallback(data,tsock) {
 	
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
-		console.log("No. of entries:"+arr.length);
+//		console.log("No. of entries:"+arr.length);
 		tsession = arr[i];	
 		var head = tsession.split("|");
 		if(head[typeIndex] == "Instant Chat")	// only interested in Instant Chats

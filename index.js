@@ -62,7 +62,7 @@ $(document).ready(function() {
 		saveCookie("username", data.username, 1);	// save as cookie for 1 day
 		saveCookie("password", data.password, 1);
 		$('#error').text("");
-		$('#myname').text(data.name);
+		$('#myname').text(data.username);
 		$("#signinform").hide();
 		console.log("Successfully signed in");
 	});	
