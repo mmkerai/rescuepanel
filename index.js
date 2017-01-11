@@ -1,11 +1,11 @@
 var socket = io.connect();
 
 function getAccount() {
-	socket.emit('getAccountRequest',"");
+	socket.emit('accountRequest',"");
 }
 
 function getHierarchy() {
-	socket.emit('getHierarchyRequest',"");
+	socket.emit('hierarchyRequest',"");
 }
 
 function getReportByChannel() {
@@ -13,7 +13,7 @@ function getReportByChannel() {
 	var bdate = $('#bdate').val();
 	var edate = $('#edate').val();
 	var params = {"id":nid,"bdate":bdate,"edate":edate};
-	socket.emit('getReportByChannelRequest',params);
+	socket.emit('reportByChannelRequest',params);
 }
 
 function getReportByNode() {
@@ -21,7 +21,7 @@ function getReportByNode() {
 	var bdate = $('#bdate').val();
 	var edate = $('#edate').val();
 	var params = {"id":nid,"bdate":bdate,"edate":edate};
-	socket.emit('getReportByNodeRequest',params);
+	socket.emit('reportByNodeRequest',params);
 }
 
 function showNodeForm(id) {
@@ -32,12 +32,7 @@ function showNodeForm(id) {
 		});
 	else
 		$('#report').on("click",function() {
-			nid = $('#nodeID').val();
-			bdate = $('#bdate').val();
-			edate = $('#edate').val();
-			params = {"nid":nid,"bdate":bdate,"edate":edate};
-			console.log("report clicked. ID:"+nid);
-			socket.emit('getReportByNodeRequest',params);			
+			getReportByNode();		
 		});
 	$('#nodeid').show(500);
 	$("#signinform").hide();
@@ -64,15 +59,15 @@ $(document).ready(function() {
 		$("#message1").html(data);
 	});
 	socket.on('signinResponse', function(data) {
-		saveCookie("username", data.name, 1);	// save as cookie for 1 day
-		saveCookie("password", data.pwd, 1);
+		saveCookie("username", data.username, 1);	// save as cookie for 1 day
+		saveCookie("password", data.password, 1);
 		$('#error').text("");
 		$('#myname').text(data.name);
 		$("#signinform").hide();
 		console.log("Successfully signed in");
 	});	
 	// this returns an array of Cuser objects
-	socket.on('getHierarchyResponse',function(data){
+	socket.on('hierarchyResponse',function(data){
 		var str="<table><tr><td>NodeID</td><td>Name</td><td>Group</td></tr>";
 		console.log("Array size: "+data.length);
 		for(var i in data)
@@ -85,7 +80,7 @@ $(document).ready(function() {
 		$("#message1").html(str);
 	});
 	
-	socket.on('getReportByChannelResponse', function(data){		// this returns an array of objects
+	socket.on('reportByChannelResponse', function(data){		// this returns an array of objects
 		$("#message1").text("");
 		var report = "<table><tr><td>Session</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td><td>Resolved</td><td>Response</td>";
 		for(var i in data)
@@ -96,7 +91,7 @@ $(document).ready(function() {
 			report += "<td>"+data[i].department+"</td>";
 			report += "<td>"+data[i].start+"</td>";
 			report += "<td>"+data[i].end+"</td>";
-			report += "<td>"+data[i].incident+"</td>";
+			report += "<td>"+data[i].tools+"</td>";
 			report += "<td>"+data[i].resolved+"</td>";
 			report += "<td>"+data[i].response+"</td>";
 			report += "</tr>";
@@ -155,7 +150,7 @@ function checkSignedIn()
 
 function signin(uname, pwd) {
 	var data = new Object();
-	data = {name: uname,pwd: pwd};
+	data = {"username": uname,"password": pwd};
 //	console.log("Data object: "+data.name+" and "+data.pwd);
 	socket.emit('signinRequest', data);
 }

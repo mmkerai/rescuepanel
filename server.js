@@ -43,7 +43,7 @@ var waitIndex;
 //******* class for instant chat session data
 var ICSession = function() {
 		this.sessionID = 0;		//unique
-		this.incident = 0;	// incident raised - i.e. remote control sessions
+		this.tools = 0;	// incident tools used - e.g. remote control sessions
 		this.resolved = 0;	// how many got resolved using chat without an incident
 		this.name = "";		// agent name
 		this.department = "";	// agent's dept
@@ -109,12 +109,12 @@ app.get('/index.js', function(req, res){
 io.on('connection', function(socket){
 	//  authenticate user name and password
 	socket.on('signinRequest', function(user){
-		console.log("Signin request received for: "+user.name);
-		if(typeof(AuthUsers[user.name]) === 'undefined')
+		console.log("Signin request received for: "+user.username);
+		if(typeof(AuthUsers[user.username]) === 'undefined')
 		{
 			socket.emit('errorResponse',"Username not valid");
 		}
-		else if(AuthUsers[user.name] != user.pwd)
+		else if(AuthUsers[user.username] != user.password)
 		{
 			socket.emit('errorResponse',"Password not valid");
 		}
@@ -122,8 +122,8 @@ io.on('connection', function(socket){
 		{
 //			console.log("Save socket "+socket.id);
 			LoggedInUsers[socket.id] = true;		// save the socketid so that updates can be sent
-			io.sockets.sockets[user.name] = socket.id;
-			socket.emit('signinResponse',{name: user.name, pwd: user.pwd});
+			io.sockets.sockets[user.username] = socket.id;
+			socket.emit('signinResponse',{username: user.username,password: user.password});
 		}
 	});
 
@@ -139,12 +139,12 @@ io.on('connection', function(socket){
 		removeSocket(socket.id, "timeout");
 	});
 
-	socket.on('getHierarchyRequest',function(data){
+	socket.on('hierarchyRequest',function(data){
 		if(isLoggedIn(socket))
 			getApiData("getHierarchy.aspx","",hierarchyCallback,socket);
 	});
 	
-	socket.on('getReportByChannelRequest',function(data){
+	socket.on('reportByChannelRequest',function(data){
 		if(isLoggedIn(socket))
 		{
 			debugLog("params",data);
@@ -361,7 +361,7 @@ function hierarchyCallback(data,tsock) {
 		th.type = line.substring(tindex+5);
 		Hierarchy.push(th);
 	}
-	tsock.emit('getHierarchyResponse',Hierarchy);
+	tsock.emit('hierarchyResponse',Hierarchy);
 }
 
 //When converted to array first element is OK second is blank and third is the header
@@ -405,13 +405,14 @@ function reportCallback(data,tsock) {
 	
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
+		console.log("No. of entries:"+arr.length);
 		tsession = arr[i];	
 		var head = tsession.split("|");
 		if(head[typeIndex] == "Instant Chat")	// only interested in Instant Chats
 		{
 			var icsession = new ICSession();
 			icsession.sessionID = head[SIDIndex];
-			icsession.incident = head[toolIndex];
+			icsession.tools = head[toolIndex];
 			icsession.resolved = head[resIndex];
 			icsession.name = head[tnameIndex];
 			icsession.department = head[tgroupIndex];
@@ -424,7 +425,7 @@ function reportCallback(data,tsock) {
 			console.log("Not Instant Chat, it is: "+head[typeIndex]);
 	}
 	console.log("No. IC sessions: "+ICSessions.length);
-	tsock.emit('getReportByChannelResponse',ICSessions);
+	tsock.emit('reportByChannelResponse',ICSessions);
 }
 
 function removeSocket(id, evname) {
