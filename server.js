@@ -29,7 +29,7 @@ var USERS = [];
 var Hierarchy;		// Array of configured users in Rescue
 var LoggedInUsers;		// array of socket ids for all logged in users
 var AuthUsers = new Object();
-var ICSessions;
+var CSessions;
 var startIndex;
 var endIndex;
 var tnameIndex;
@@ -40,9 +40,10 @@ var toolIndex;
 var resIndex;
 var waitIndex;	
 
-//******* class for instant chat session data
-var ICSession = function() {
+//******* class for chat session data
+var CSession = function() {
 		this.sessionID = 0;		//unique
+		this.sessionType = 0;
 		this.tools = 0;	// incident tools used - e.g. remote control sessions
 		this.resolved = 0;	// how many got resolved using chat without an incident
 		this.name = "";		// agent name
@@ -207,7 +208,7 @@ function validPassword(plain,hashed) {
 }
 
 function initialiseGlobals() {
-	ICSessions = new Array();
+	CSessions = new Array();
 	Hierarchy = new Array();		// Array of configured users in Rescue
 	LoggedInUsers = new Object();
 }
@@ -396,12 +397,12 @@ function reportCallback(data,tsock) {
 	arr = sdata.split("\n");
 	if(arr[0] !== "OK")			// API request not successful
 	{
-		console.log("API Request Status: "+arr[0]);
+//		console.log("API Request Status: "+arr[0]);
 		return(tsock.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
-	console.log("header: "+header);
+//	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -430,24 +431,20 @@ function reportCallback(data,tsock) {
 //		console.log("No. of entries:"+arr.length);
 		tsession = arr[i];	
 		var head = tsession.split("|");
-		if(head[typeIndex] == "Instant Chat")	// only interested in Instant Chats
-		{
-			var icsession = new ICSession();
-			icsession.sessionID = head[SIDIndex];
-			icsession.tools = head[toolIndex];
-			icsession.resolved = head[resIndex];
-			icsession.name = head[tnameIndex];
-			icsession.department = head[tgroupIndex];
-			icsession.start = head[startIndex];
-			icsession.end = head[endIndex];
-			icsession.response = head[waitIndex];
-			ICSessions.push(icsession);		// add to list
-		}	
-		else
-			console.log("Not Instant Chat, it is: "+head[typeIndex]);
+		var csession = new CSession();
+		csession.sessionID = head[SIDIndex];
+		csession.sessionType = head[typeIndex];
+		csession.tools = head[toolIndex];
+		csession.resolved = head[resIndex];
+		csession.name = head[tnameIndex];
+		csession.department = head[tgroupIndex];
+		csession.start = head[startIndex];
+		csession.end = head[endIndex];
+		csession.response = head[waitIndex];
+		CSessions.push(csession);		// add to list
 	}
-	console.log("No. IC sessions: "+ICSessions.length);
-	tsock.emit('reportByChannelResponse',ICSessions);
+	console.log("No. Chat sessions: "+CSessions.length);
+	tsock.emit('reportByChannelResponse',CSessions);
 }
 
 function removeSocket(id, evname) {

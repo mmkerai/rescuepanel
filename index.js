@@ -82,11 +82,12 @@ $(document).ready(function() {
 	
 	socket.on('reportByChannelResponse', function(data){		// this returns an array of objects
 		$("#message1").text("");
-		var report = "<table><tr><td>Session</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td><td>Resolved</td><td>Response</td>";
+		var report = "<table><tr><td>Session</td><td>Type</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td><td>Resolved</td><td>Response</td>";
 		for(var i in data)
 		{
 			report += "<tr>";
 			report += "<td>"+data[i].sessionID+"</td>";
+			report += "<td>"+data[i].sessionType+"</td>";
 			report += "<td>"+data[i].name+"</td>";
 			report += "<td>"+data[i].department+"</td>";
 			report += "<td>"+data[i].start+"</td>";
