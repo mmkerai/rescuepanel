@@ -156,13 +156,30 @@ io.on('connection', function(socket){
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=DDMMYY",genericCallback,socket);
+				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
 				sleep(500);
-				getApiData("setReportArea.aspx","area=0",genericCallback,socket);
+				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
 				sleep(500);
-				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,genericCallback,socket);
+				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
 				sleep(500);
 				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",reportCallback,socket);
+			}
+		}
+	});
+	
+	socket.on('reportByNodeRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
+				sleep(500);
+				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",reportCallback,socket);
 			}
 		}
 	});
@@ -354,6 +371,10 @@ function genericCallback(data,tsock) {
 	tsock.emit('goodResponse',data);
 }
 
+function dummyCallback(data,tsock) {
+	console.log(data);
+}
+
 function hierarchyCallback(data,tsock) {
 	var str = "";
 	var pindex,nindex,eindex,tindex;
@@ -431,17 +452,20 @@ function reportCallback(data,tsock) {
 //		console.log("No. of entries:"+arr.length);
 		tsession = arr[i];	
 		var head = tsession.split("|");
-		var csession = new CSession();
-		csession.sessionID = head[SIDIndex];
-		csession.sessionType = head[typeIndex];
-		csession.tools = head[toolIndex];
-		csession.resolved = head[resIndex];
-		csession.name = head[tnameIndex];
-		csession.department = head[tgroupIndex];
-		csession.start = head[startIndex];
-		csession.end = head[endIndex];
-		csession.response = head[waitIndex];
-		CSessions.push(csession);		// add to list
+		if(typeof head[SIDIndex] != 'undefined')
+		{
+			var csession = new CSession();
+			csession.sessionID = head[SIDIndex];
+			csession.sessionType = head[typeIndex];
+			csession.tools = head[toolIndex];
+			csession.resolved = head[resIndex];
+			csession.name = head[tnameIndex];
+			csession.department = head[tgroupIndex];
+			csession.start = head[startIndex];
+			csession.end = head[endIndex];
+			csession.response = head[waitIndex];
+			CSessions.push(csession);		// add to list
+		}
 	}
 	console.log("No. Chat sessions: "+CSessions.length);
 	tsock.emit('reportByChannelResponse',CSessions);
