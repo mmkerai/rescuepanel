@@ -28,17 +28,7 @@ var APIUSERPWD;
 var USERS = [];
 var Hierarchy;		// Array of configured users in Rescue
 var LoggedInUsers;		// array of socket ids for all logged in users
-var AuthUsers = new Object();
-var CSessions;
-var startIndex;
-var endIndex;
-var tnameIndex;
-var tgroupIndex;
-var SIDIndex;
-var typeIndex;
-var toolIndex;
-var resIndex;
-var waitIndex;	
+var AuthUsers = new Object();	
 
 //******* class for chat session data
 var CSession = function() {
@@ -58,6 +48,17 @@ var Cuser = function() {
 		this.nodeID = 0;	// unique
 		this.name = "";		// user name
 		this.type = "";		// account type
+};
+
+//******* class for customer survey data
+var CSurvey = function() {
+		this.sessionID = 0;		//unique
+		this.source = "";		// which group
+		this.date = "";	// date and time
+		this.username = "";	// end username
+		this.rating = "";		// rating
+		this.techname = "";	// technician name
+		this.techID = 0;	// technician ID
 };
 
 //******* Get BoldChat API Credentials
@@ -147,9 +148,13 @@ io.on('connection', function(socket){
 
 	socket.on('hierarchyRequest',function(data){
 		if(isLoggedIn(socket))
+		{
+			console.log("Hierarchy requested");
 			getApiData("getHierarchy.aspx","",hierarchyCallback,socket);
+		}
 	});
 	
+	// session report (report area=0)
 	socket.on('reportByChannelRequest',function(data){
 		if(isLoggedIn(socket))
 		{
@@ -167,7 +172,43 @@ io.on('connection', function(socket){
 		}
 	});
 	
+	// session report (report area=0)
 	socket.on('reportByNodeRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				getApiData("setDateFormat.aspx","dateformat=MMDDYY",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
+				sleep(500);
+				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",reportCallback,socket);
+			}
+		}
+	});
+	
+	// customer survey report
+	socket.on('CSReportByChannelRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				getApiData("setDateFormat.aspx","dateformat=MMDDYY",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
+				sleep(500);
+				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
+				sleep(500);
+				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",CSreportCallback,socket);
+			}
+		}
+	});
+	// customer survey report
+	socket.on('CSreportByNodeRequest',function(data){
 		if(isLoggedIn(socket))
 		{
 			debugLog("params",data);
@@ -175,11 +216,11 @@ io.on('connection', function(socket){
 			{
 				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
 				sleep(500);
-				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
+				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
 				sleep(500);
 				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
 				sleep(500);
-				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",reportCallback,socket);
+				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",CSreportCallback,socket);
 			}
 		}
 	});
@@ -225,7 +266,6 @@ function validPassword(plain,hashed) {
 }
 
 function initialiseGlobals() {
-	CSessions = new Array();
 	Hierarchy = new Array();		// Array of configured users in Rescue
 	LoggedInUsers = new Object();
 }
@@ -408,11 +448,13 @@ function hierarchyCallback(data,tsock) {
 	tsock.emit('hierarchyResponse',Hierarchy);
 }
 
+//Session report.
 //When converted to array first element is OK second is blank and third is the header
 function reportCallback(data,tsock) {
-	var str = "";
+	var waitIndex,resIndex,toolIndex,typeIndex,SIDIndex,tgroupIndex,tnameIndex,endIndex,startIndex;
 	var tsession;
 	var sdata = data.toString();
+	var CSessions = new Array();
 	var arr = new Array();
 	var head = new Array();
 	arr = sdata.split("\n");
@@ -447,9 +489,9 @@ function reportCallback(data,tsock) {
 			waitIndex = i;	
 	}
 	
+//		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
-//		console.log("No. of entries:"+arr.length);
 		tsession = arr[i];	
 		var head = tsession.split("|");
 		if(typeof head[SIDIndex] != 'undefined')
@@ -469,6 +511,65 @@ function reportCallback(data,tsock) {
 	}
 	console.log("No. Chat sessions: "+CSessions.length);
 	tsock.emit('reportByChannelResponse',CSessions);
+}
+
+//Customer survey report.
+//When converted to array first element is OK second is blank and third is the header
+function CSreportCallback(data,tsock) {
+	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex;
+	var tsurvey;
+	var sdata = data.toString();
+	var CSurveys = new Array();
+	var arr = new Array();
+	var head = new Array();
+	arr = sdata.split("\n");
+	if(arr[0] !== "OK")			// API request not successful
+	{
+//		console.log("API Request Status: "+arr[0]);
+		return(tsock.emit('errorResponse',arr[0]));
+	}
+	
+	var header = arr[2];	
+//	console.log("header: "+header);
+	head = header.split("|");
+	for(var i in head)
+	{
+		if(head[i] == "Source")
+			sourceIndex = i;
+		else if(head[i] == "Session ID")
+			SIDIndex = i;
+		else if(head[i] == "Date")
+			dateIndex = i;
+		else if(head[i] == "End user's First name")
+			usernameIndex = i;
+		else if(head[i].includes("Please rate your product"))
+			rateIndex = i;
+		else if(head[i] == "Technician Name")
+			technameIndex = i;
+		else if(head[i] == "Technician ID")
+			techIDIndex = i;
+	}
+	
+//		console.log("No. of entries:"+arr.length);
+	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
+	{
+		tsurvey = arr[i];	
+		var head = tsurvey.split("|");
+		if(typeof head[SIDIndex] != 'undefined')
+		{
+			var csurvey = new CSurvey();
+			csurvey.sessionID = head[SIDIndex];
+			csurvey.source = head[sourceIndex];
+			csurvey.date = head[dateIndex];
+			csurvey.username = head[usernameIndex];
+			csurvey.rating = head[rateIndex];
+			csurvey.techname = head[technameIndex];
+			csurvey.techID = head[techIDIndex];
+			CSurveys.push(csurvey);		// add to list
+		}
+	}
+	console.log("No. Surveys: "+CSurveys.length);
+	tsock.emit('CSReportByChannelResponse',CSurveys);
 }
 
 function removeSocket(id, evname) {

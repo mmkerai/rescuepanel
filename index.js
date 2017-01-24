@@ -8,32 +8,26 @@ function getHierarchy() {
 	socket.emit('hierarchyRequest',"");
 }
 
-function getReportByChannel() {
+function getReport(id) {
 	var nid = $('#nodeID').val();
 	var bdate = $('#bdate').val();
 	var edate = $('#edate').val();
 	var params = {"id":nid,"bdate":bdate,"edate":edate};
-	socket.emit('reportByChannelRequest',params);
-}
-
-function getReportByNode() {
-	var nid = $('#nodeID').val();
-	var bdate = $('#bdate').val();
-	var edate = $('#edate').val();
-	var params = {"id":nid,"bdate":bdate,"edate":edate};
-	socket.emit('reportByNodeRequest',params);
+	if(id == 0)
+		socket.emit('reportByChannelRequest',params);
+	else if(id == 1)
+		socket.emit('reportByNodeRequest',params);
+	else if(id == 2)
+		socket.emit('CSReportByChannelRequest',params);
+	else if(id == 3)
+		socket.emit('CSReportByNodeRequest',params);
 }
 
 function showNodeForm(id) {
-	var nid,bdate,edate,params;
-	if(id == 1)
-		$('#report').on("click",function() {
-			getReportByChannel();
-		});
-	else
-		$('#report').on("click",function() {
-			getReportByNode();		
-		});
+
+	$('#report').on("click",function() {
+		getReport(id);		
+	});	
 	$('#nodeid').show(500);
 	$("#signinform").hide();
 }
@@ -101,6 +95,24 @@ $(document).ready(function() {
 		$("#message1").html(report);
 	});
 
+	socket.on('CSReportByChannelResponse', function(data){		// this returns an array of objects
+		$("#message1").text("");
+		var report = "<table><tr><td>Session</td><td>Source</td><td>Date</td><td>User Name</td><td>Rating</td><td>Technician Name</td><td>Technician ID</td>";
+		for(var i in data)
+		{
+			report += "<tr>";
+			report += "<td>"+data[i].sessionID+"</td>";
+			report += "<td>"+data[i].source+"</td>";
+			report += "<td>"+data[i].date+"</td>";
+			report += "<td>"+data[i].username+"</td>";
+			report += "<td>"+data[i].rating+"</td>";
+			report += "<td>"+data[i].techname+"</td>";
+			report += "<td>"+data[i].techID+"</td>";
+			report += "</tr>";
+		}
+		report += "</table>";
+		$("#message1").html(report);
+	});
 });
 
 function loginForm() {
