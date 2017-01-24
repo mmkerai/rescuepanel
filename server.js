@@ -162,11 +162,11 @@ io.on('connection', function(socket){
 			if(isValidParams(data,socket))
 			{
 				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",reportCallback,socket);
 			}
 		}
@@ -179,12 +179,12 @@ io.on('connection', function(socket){
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=MMDDYY",dummyCallback,socket);
-				sleep(500);
+				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
+				sleep(1000);
 				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",reportCallback,socket);
 			}
 		}
@@ -197,12 +197,12 @@ io.on('connection', function(socket){
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=MMDDYY",dummyCallback,socket);
-				sleep(500);
+				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
+				sleep(1000);
 				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",CSreportCallback,socket);
 			}
 		}
@@ -215,11 +215,11 @@ io.on('connection', function(socket){
 			if(isValidParams(data,socket))
 			{
 				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(500);
+				sleep(1000);
 				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",CSreportCallback,socket);
 			}
 		}

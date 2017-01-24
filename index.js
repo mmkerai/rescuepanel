@@ -205,3 +205,47 @@ function saveCookie(name, value, delay)
 
   document.cookie = name+"="+value+expires+"; path=/";
 }
+
+/* build csvfile from table to export snapshot
+ */
+function tableToCsvFile(dashtable) {
+	var key, keys, j, i, k;
+	var str = "";
+
+	$('#download').hide();
+	$("#message1").text("Preparing file for export");
+	var exportData = "Dashboard Metrics Export "+new Date().toUTCString()+"\r\n";
+	exportData = exportData + "\r\n";
+	var ttable = document.getElementById(dashtable);
+	for(var x = 0; x < ttable.rows.length; x++)
+	{
+		row = ttable.rows[x];
+		for (var j = 0, col; col = row.cells[j]; j++)
+		{
+			str = str +"\""+ col.innerHTML + "\",";
+		}
+		str = str + "\r\n";
+	}
+	exportData = exportData + str +"\r\n";
+	prepareDownloadFile(exportData);
+}
+
+/*
+ *	This function makes data (typically csv format) available for download
+ *  using the DOM id "download" which should be labelled "download file"
+ */
+function prepareDownloadFile(data)
+{
+	var filedata = new Blob([data], {type: 'text/plain'});
+	// If we are replacing a previously generated file we need to
+	// manually revoke the object URL to avoid memory leaks.
+	if (csvfile !== null)
+	{
+		window.URL.revokeObjectURL(csvfile);
+	}
+
+    csvfile = window.URL.createObjectURL(filedata);
+	$("#message1").text("Snapshot exported "+ new Date().toUTCString());
+	$('#download').attr("href",csvfile);
+	$('#download').show(300);
+}
