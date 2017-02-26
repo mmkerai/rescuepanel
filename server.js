@@ -21,13 +21,22 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 var PORT = Number(process.env.PORT || 7979);
 server.listen(PORT);
 
+//****** Global Constants
+const SESSION_REPORT = 0;
+const CSURVEY_REPORT = 1;
+const TSURVEY_REPORT = 8;
+const PERF_REPORT = 4;
+const DATE_FORMAT = "dateformat=DDMMYY";
+
 //********** Global variable (all should begin with a capital letter)
 var EnVars;
 var APIUSERNAME;
 var APIUSERPWD;
 var USERS = [];
-var Hierarchy;		// Array of configured users in Rescue
 var LoggedInUsers;		// array of socket ids for all logged in users
+var ApiDataNotReady;
+var Rep_params,Rep_callback,Rep_socket;	// globals used for API call
+
 var AuthUsers = new Object();	
 
 //******* class for chat session data
@@ -40,7 +49,11 @@ var CSession = function() {
 		this.department = "";	// agent's dept
 		this.start = 0;	// start time
 		this.end = 0;	// end time
-		this.response = 0;	// time taken for agent to pick up the session
+		this.waitTime = 0;	// time taken for agent to pick up the session
+		this.totalTime = 0;	// 
+		this.activeTime = 0;	//
+		this.workTime = 0;	// 
+		this.wrapTime = 0;	// 
 };
 
 //******* class for hierarchy (configured user) data
@@ -57,8 +70,30 @@ var CSurvey = function() {
 		this.date = "";	// date and time
 		this.username = "";	// end username
 		this.rating = "";		// rating
-		this.techname = "";	// technician name
+		this.techName = "";	// technician name
 		this.techID = 0;	// technician ID
+};
+
+//******* class for technician survey data
+var TSurvey = function() {
+		this.sessionID = 0;		//unique
+		this.source = "";		// which group
+		this.date = "";	// date and time
+		this.username = "";	// end username
+		this.evaluate = "";		// tech evaluation
+		this.techName = "";	// technician name
+		this.techID = 0;	// technician ID
+};
+
+//******* class for tech performance data
+var TPerformance = function() {
+		this.techName = "";	// technician name
+		this.techID = 0;	// technician ID
+		this.noOfSessions = 0;	// number of sessions
+		this.totalTime = "";	// total login time
+		this.avgPickup = "";	// average pickup speed
+		this.avgDuration = "";		// average duration
+		this.avgWorkTime = "";		// average work time
 };
 
 //******* Get BoldChat API Credentials
@@ -155,37 +190,33 @@ io.on('connection', function(socket){
 	});
 	
 	// session report (report area=0)
-	socket.on('reportByChannelRequest',function(data){
+	socket.on('SessReportByChannelRequest',function(data){
 		if(isLoggedIn(socket))
 		{
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(1000);
-				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",reportCallback,socket);
+				setReport(SESSION_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_callback = SessReportCallback;
+				Rep_socket = socket;
+				getReport();
 			}
 		}
 	});
 	
 	// session report (report area=0)
-	socket.on('reportByNodeRequest',function(data){
+	socket.on('SessReportByNodeRequest',function(data){
 		if(isLoggedIn(socket))
 		{
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportArea.aspx","area=0",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(1000);
-				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",reportCallback,socket);
+				setReport(SESSION_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=NODE";
+				Rep_callback = SessReportCallback;
+				Rep_socket = socket;
+				getReport();
 			}
 		}
 	});
@@ -197,33 +228,91 @@ io.on('connection', function(socket){
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(1000);
-				getApiData("getReport.aspx","node="+data.id+"&nodetype=CHANNEL",CSreportCallback,socket);
+				setReport(CSURVEY_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_callback = CSReportCallback;
+				Rep_socket = socket;
+				getReport();
 			}
 		}
 	});
 	// customer survey report
-	socket.on('CSreportByNodeRequest',function(data){
+	socket.on('CSReportByNodeRequest',function(data){
 		if(isLoggedIn(socket))
 		{
 			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				getApiData("setDateFormat.aspx","dateformat=DDMMYY",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportArea.aspx","area=1",dummyCallback,socket);
-				sleep(1000);
-				getApiData("setReportDate.aspx","bdate="+data.bdate+"&edate="+data.edate,dummyCallback,socket);
-				sleep(1000);
-				getApiData("getReport.aspx","node="+data.id+"&nodetype=NODE",CSreportCallback,socket);
+				setReport(CSURVEY_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=NODE";
+				Rep_callback = CSReportCallback;
+				Rep_socket = socket;
+				getReport();
 			}
 		}
 	});
+	
+	// technician survey report
+	socket.on('TSReportByChannelRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				setReport(TSURVEY_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_callback = TSReportCallback;
+				Rep_socket = socket;
+				getReport();
+			}
+		}
+	});
+	// technician survey report
+	socket.on('TSReportByNodeRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				setReport(TSURVEY_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=NODE";
+				Rep_callback = TSReportCallback;
+				Rep_socket = socket;
+				getReport();
+			}
+		}
+	});
+
+	// performance report
+	socket.on('PerfReportByChannelRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				setReport(PERF_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_callback = PerfReportCallback;
+				Rep_socket = socket;
+				getReport();
+			}
+		}
+	});
+	// performance report
+	socket.on('PerfReportByNodeRequest',function(data){
+		if(isLoggedIn(socket))
+		{
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				setReport(PERF_REPORT,data,socket);
+				Rep_params = "node="+data.id+"&nodetype=NODE";
+				Rep_callback = PerfReportCallback;
+				Rep_socket = socket;
+				getReport();
+			}
+		}
+	});	
 });
 
 /*process.on('uncaughtException', function (err) {
@@ -266,7 +355,7 @@ function validPassword(plain,hashed) {
 }
 
 function initialiseGlobals() {
-	Hierarchy = new Array();		// Array of configured users in Rescue
+	ApiDataNotReady = 0;
 	LoggedInUsers = new Object();
 }
 
@@ -285,27 +374,29 @@ function sleep(milliseconds) {
 	}
 }
 
-function postToArchive(postdata) {
-	var options = {
-		host : 'uber-electronics.com',
-		port : 443,
-		path : '/home/mkerai/APItriggers/.php',
-		method : 'POST',
-		headers: {
-          'Content-Type': 'text/plain',
-          'Content-Length': Buffer.byteLength(postdata)
-		}
-	};
-	var post_req = https.request(options, function(res){
-		res.setEncoding('utf8');
-		res.on('data', function (chunk) {
-//			console.log('Response: ' + chunk);
-			});
-		});
-	post_req.write(postdata);
-	post_req.end();
-	post_req.on('error', function(err){console.log("HTML error"+err.stack)});
-	console.log("End of day archived successfully");
+function setReport(report,data,socket) {
+
+	var reportArea = "area="+report;
+	var dates = "bdate="+data.bdate+"&edate="+data.edate;				
+
+	getApiData("setDateFormat.aspx",DATE_FORMAT,dummyCallback,socket);
+	sleep(100);
+	getApiData("setReportArea.aspx",reportArea,dummyCallback,socket);
+	sleep(100);
+	getApiData("setReportDate.aspx",dates,dummyCallback,socket);
+	sleep(100);
+}
+
+function getReport() {
+	
+	if(ApiDataNotReady)
+	{
+		console.log("waiting for API");
+		setTimeout(getReport,1000);		// try again a second later
+		return;
+	}
+
+	getApiData("getReport.aspx",Rep_params,Rep_callback,Rep_socket);
 }
 
 function debugLog(name, dataobj) {
@@ -341,8 +432,7 @@ function isValidParams(params,tsock) {
 	{
 		tsock.emit('errorResponse',"End date is incorrect");
 		return;		
-	}		
-	
+	}	
 	return true;
 }
 
@@ -366,6 +456,7 @@ function Rescue_API_Request(method,params,callBackFunction) {
 
 // calls extraction API and receives formatted strings (no JSON)
 function getApiData(method,params,fcallback,cbparam) {
+	ApiDataNotReady++;
 	Rescue_API_Request(method,params,function(response)
 	{
 		var str = '';
@@ -375,6 +466,7 @@ function getApiData(method,params,fcallback,cbparam) {
 		});
 		//the whole response has been received, take final action.
 		response.on('end',function () {
+			ApiDataNotReady--;
 			var data = str;
 			if(data === 'undefined' || data == null)
 			{
@@ -386,7 +478,8 @@ function getApiData(method,params,fcallback,cbparam) {
 		// in case there is a html error
 		response.on('error', function(err) {
 		// handle errors with the request itself
-		console.error("Error with the request: ", err.message);
+			ApiDataNotReady--;
+			console.error("Error with the request: ", err.message);
 		});
 	});
 }
@@ -431,6 +524,7 @@ function hierarchyCallback(data,tsock) {
 	}
 // line format is: 15988113 ParentID:2715315 Name:Manji Kerai Email:mkerai@logmein.com Description: some text Status:Offline Type:MasterAdministrator	
 // parse above line and convert to array of objects
+	var Hierarchy = new Array();		// Array of configured users in Rescue
 	for(var i=2;i < arr.length;i++)	// first line is OK, then blank, then the data
 	{
 		var th = new Cuser();
@@ -450,11 +544,11 @@ function hierarchyCallback(data,tsock) {
 
 //Session report.
 //When converted to array first element is OK second is blank and third is the header
-function reportCallback(data,tsock) {
-	var waitIndex,resIndex,toolIndex,typeIndex,SIDIndex,tgroupIndex,tnameIndex,endIndex,startIndex;
+function SessReportCallback(data,tsock) {
+	var resIndex,toolIndex,typeIndex,SIDIndex,tgroupIndex,tnameIndex,endIndex,startIndex;
+	var waitIndex,totalIndex,activeIndex,workIndex,wrapIndex;
 	var tsession;
 	var sdata = data.toString();
-	var CSessions = new Array();
 	var arr = new Array();
 	var head = new Array();
 	arr = sdata.split("\n");
@@ -487,9 +581,18 @@ function reportCallback(data,tsock) {
 			resIndex = i;
 		else if(head[i] == "Waiting Time")
 			waitIndex = i;	
+		else if(head[i] == "Total Time")
+			totalIndex = i;	
+		else if(head[i] == "Active Time")
+			activeIndex = i;	
+		else if(head[i] == "Work Time")
+			workIndex = i;	
+		else if(head[i] == "Wrap Time")
+			wrapIndex = i;	
 	}
 	
 //		console.log("No. of entries:"+arr.length);
+	var CSessions = new Array();
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		tsession = arr[i];	
@@ -505,21 +608,23 @@ function reportCallback(data,tsock) {
 			csession.department = head[tgroupIndex];
 			csession.start = head[startIndex];
 			csession.end = head[endIndex];
-			csession.response = head[waitIndex];
+			csession.waitTime = head[waitIndex];
+			csession.totalTime = head[totalIndex];
+			csession.activeTime = head[activeIndex];
+			csession.workTime = head[workIndex];
+			csession.wrapTime = head[wrapIndex];
 			CSessions.push(csession);		// add to list
 		}
 	}
 	console.log("No. Chat sessions: "+CSessions.length);
-	tsock.emit('reportByChannelResponse',CSessions);
+	tsock.emit('SessReportResponse',CSessions);
 }
 
 //Customer survey report.
 //When converted to array first element is OK second is blank and third is the header
-function CSreportCallback(data,tsock) {
+function CSReportCallback(data,tsock) {
 	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex;
-	var tsurvey;
 	var sdata = data.toString();
-	var CSurveys = new Array();
 	var arr = new Array();
 	var head = new Array();
 	arr = sdata.split("\n");
@@ -551,10 +656,10 @@ function CSreportCallback(data,tsock) {
 	}
 	
 //		console.log("No. of entries:"+arr.length);
+	var CSurveys = new Array();
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
-		tsurvey = arr[i];	
-		var head = tsurvey.split("|");
+		var head = arr[i].split("|");
 		if(typeof head[SIDIndex] != 'undefined')
 		{
 			var csurvey = new CSurvey();
@@ -563,13 +668,127 @@ function CSreportCallback(data,tsock) {
 			csurvey.date = head[dateIndex];
 			csurvey.username = head[usernameIndex];
 			csurvey.rating = head[rateIndex];
-			csurvey.techname = head[technameIndex];
+			csurvey.techName = head[technameIndex];
 			csurvey.techID = head[techIDIndex];
 			CSurveys.push(csurvey);		// add to list
 		}
 	}
 	console.log("No. Surveys: "+CSurveys.length);
-	tsock.emit('CSReportByChannelResponse',CSurveys);
+	tsock.emit('CSReportResponse',CSurveys);
+}
+
+//Technician survey report.
+//When converted to array first element is OK second is blank and third is the header
+function TSReportCallback(data,tsock) {
+	var sourceIndex,SIDIndex,dateIndex,usernameIndex,evalIndex,technameIndex,techIDIndex;
+	var sdata = data.toString();
+	var arr = new Array();
+	var head = new Array();
+	arr = sdata.split("\n");
+	if(arr[0] !== "OK")			// API request not successful
+	{
+//		console.log("API Request Status: "+arr[0]);
+		return(tsock.emit('errorResponse',arr[0]));
+	}
+	
+	var header = arr[2];	
+//	console.log("header: "+header);
+	head = header.split("|");
+	for(var i in head)
+	{
+		if(head[i] == "Source")
+			sourceIndex = i;
+		else if(head[i] == "Session ID")
+			SIDIndex = i;
+		else if(head[i] == "Date")
+			dateIndex = i;
+		else if(head[i] == "End user's First name")
+			usernameIndex = i;
+		else if(head[i].includes("Please evaluate the session"))
+			evalIndex = i;
+		else if(head[i] == "Technician Name")
+			technameIndex = i;
+		else if(head[i] == "Technician ID")
+			techIDIndex = i;
+	}
+	
+//		console.log("No. of entries:"+arr.length);
+	var TSurveys = new Array();
+	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
+	{	
+		var head = arr[i].split("|");
+		if(typeof head[SIDIndex] != 'undefined')
+		{
+			var tsurvey = new TSurvey();
+			tsurvey.sessionID = head[SIDIndex];
+			tsurvey.source = head[sourceIndex];
+			tsurvey.date = head[dateIndex];
+			tsurvey.username = head[usernameIndex];
+			tsurvey.evaluate = head[evalIndex];
+			tsurvey.techName = head[technameIndex];
+			tsurvey.techID = head[techIDIndex];
+			TSurveys.push(tsurvey);		// add to list
+		}
+	}
+	console.log("No. Surveys: "+TSurveys.length);
+	tsock.emit('TSReportResponse',TSurveys);
+}
+
+//Performance report.
+//When converted to array first element is OK second is blank and third is the header
+function PerfReportCallback(data,tsock) {
+	var technameIndex,techIDIndex,nosessIndex,pickupIndex,tltimeIndex,wtimeIndex,durationIndex;
+	var sdata = data.toString();
+	var arr = new Array();
+	var head = new Array();
+	arr = sdata.split("\n");
+	if(arr[0] !== "OK")			// API request not successful
+	{
+//		console.log("API Request Status: "+arr[0]);
+		return(tsock.emit('errorResponse',arr[0]));
+	}
+	
+	var header = arr[2];	
+//	console.log("header: "+header);
+	head = header.split("|");
+	for(var i in head)
+	{
+		if(head[i] == "Technician Name")
+			technameIndex = i;
+		else if(head[i] == "Technician ID")
+			techIDIndex = i;
+		else if(head[i] == "Number of Sessions")
+			nosessIndex = i;
+		else if(head[i] == "Total Login Time")
+			tltimeIndex = i;
+		else if(head[i].includes("Pick-up"))
+			pickupIndex = i;
+		else if(head[i].includes("Duration"))
+			durationIndex = i;
+		else if(head[i].includes("Average Work"))
+			wtimeIndex = i;	
+	}
+	
+//		console.log("No. of entries:"+arr.length);
+	var TPerformances = new Array();
+	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
+	{	
+		var head = arr[i].split("|");
+		if(typeof head[techIDIndex] != 'undefined')
+		{
+			var tperf = new TPerformance();
+			tperf.techName = head[technameIndex];
+			tperf.techID = head[techIDIndex];
+			tperf.noOfSessions = head[nosessIndex];
+			tperf.totalTime = head[tltimeIndex];
+			tperf.avgPickup = head[pickupIndex];
+			tperf.avgDuration = head[durationIndex];
+			tperf.avgWorkTime = head[wtimeIndex];
+			TPerformances.push(tperf);		// add to list
+		}
+	}
+	console.log("No. Technicians: "+TPerformances.length);
+	tsock.emit('PerfReportResponse',TPerformances);
 }
 
 function removeSocket(id, evname) {

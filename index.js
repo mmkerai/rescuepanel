@@ -12,15 +12,25 @@ function getReport(id) {
 	var nid = $('#nodeID').val();
 	var bdate = $('#bdate').val();
 	var edate = $('#edate').val();
+	$("#message1").html("");
+	$("#error").html("");
 	var params = {"id":nid,"bdate":bdate,"edate":edate};
 	if(id == 0)
-		socket.emit('reportByChannelRequest',params);
+		socket.emit('SessReportByChannelRequest',params);
 	else if(id == 1)
-		socket.emit('reportByNodeRequest',params);
+		socket.emit('SessReportByNodeRequest',params);
 	else if(id == 2)
 		socket.emit('CSReportByChannelRequest',params);
 	else if(id == 3)
 		socket.emit('CSReportByNodeRequest',params);
+	else if(id == 4)
+		socket.emit('TSReportByChannelRequest',params);
+	else if(id == 5)
+		socket.emit('TSReportByNodeRequest',params);
+	else if(id == 6)
+		socket.emit('PerfReportByChannelRequest',params);
+	else if(id == 7)
+		socket.emit('PerfReportByNodeRequest',params);
 }
 
 function showNodeForm(id) {
@@ -74,9 +84,10 @@ $(document).ready(function() {
 		$("#message1").html(str);
 	});
 	
-	socket.on('reportByChannelResponse', function(data){		// this returns an array of objects
+	socket.on('SessReportResponse', function(data){		// this returns an array of objects
 		$("#message1").text("");
-		var report = "<table><tr><td>Session</td><td>Type</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td><td>Resolved</td><td>Response</td>";
+		var report = "<table border='1'><tr><td>Session</td><td>Type</td><td>Name</td><td>Department</td><td>Start</td><td>End</td><td>Incident</td>"+
+					"<td>Resolved</td><td>Wait Time</td><td>Total Time</td><td>Active Time</td><td>Work Time</td><td>Wrap Time</td>";
 		for(var i in data)
 		{
 			report += "<tr>";
@@ -88,16 +99,20 @@ $(document).ready(function() {
 			report += "<td>"+data[i].end+"</td>";
 			report += "<td>"+data[i].tools+"</td>";
 			report += "<td>"+data[i].resolved+"</td>";
-			report += "<td>"+data[i].response+"</td>";
+			report += "<td>"+data[i].waitTime+"</td>";
+			report += "<td>"+data[i].totalTime+"</td>";
+			report += "<td>"+data[i].activeTime+"</td>";
+			report += "<td>"+data[i].workTime+"</td>";
+			report += "<td>"+data[i].wrapTime+"</td>";
 			report += "</tr>";
 		}
 		report += "</table>";
 		$("#message1").html(report);
 	});
 
-	socket.on('CSReportByChannelResponse', function(data){		// this returns an array of objects
+	socket.on('CSReportResponse', function(data){		// this returns an array of objects
 		$("#message1").text("");
-		var report = "<table><tr><td>Session</td><td>Source</td><td>Date</td><td>User Name</td><td>Rating</td><td>Technician Name</td><td>Technician ID</td>";
+		var report = "<table border='1'><tr><td>Session</td><td>Source</td><td>Date</td><td>User Name</td><td>Rating</td><td>Technician Name</td><td>Technician ID</td>";
 		for(var i in data)
 		{
 			report += "<tr>";
@@ -106,8 +121,47 @@ $(document).ready(function() {
 			report += "<td>"+data[i].date+"</td>";
 			report += "<td>"+data[i].username+"</td>";
 			report += "<td>"+data[i].rating+"</td>";
-			report += "<td>"+data[i].techname+"</td>";
+			report += "<td>"+data[i].techName+"</td>";
 			report += "<td>"+data[i].techID+"</td>";
+			report += "</tr>";
+		}
+		report += "</table>";
+		$("#message1").html(report);
+	});
+	
+	socket.on('TSReportResponse', function(data){		// this returns an array of objects
+		$("#message1").text("");
+		var report = "<table border='1'><tr><td>Session</td><td>Source</td><td>Date</td><td>User Name</td><td>Evaluation</td><td>Technician Name</td><td>Technician ID</td>";
+		for(var i in data)
+		{
+			report += "<tr>";
+			report += "<td>"+data[i].sessionID+"</td>";
+			report += "<td>"+data[i].source+"</td>";
+			report += "<td>"+data[i].date+"</td>";
+			report += "<td>"+data[i].username+"</td>";
+			report += "<td>"+data[i].evaluate+"</td>";
+			report += "<td>"+data[i].techName+"</td>";
+			report += "<td>"+data[i].techID+"</td>";
+			report += "</tr>";
+		}
+		report += "</table>";
+		$("#message1").html(report);
+	});
+	
+	socket.on('PerfReportResponse', function(data){		// this returns an array of objects
+		$("#message1").text("");
+		var report = "<table border='1'><tr><td>Tech Name</td><td>Tech ID</td><td>Sessions</td><td>Total Login Time</td>" +
+					"<td>Average Pickup Time</td><td>Average Duration</td><td>Average Work Time</td>";
+		for(var i in data)
+		{
+			report += "<tr>";
+			report += "<td>"+data[i].techName+"</td>";
+			report += "<td>"+data[i].techID+"</td>";
+			report += "<td>"+data[i].noOfSessions+"</td>";
+			report += "<td>"+data[i].totalTime+"</td>";
+			report += "<td>"+data[i].avgPickup+"</td>";
+			report += "<td>"+data[i].avgDuration+"</td>";
+			report += "<td>"+data[i].avgWorkTime+"</td>";
 			report += "</tr>";
 		}
 		report += "</table>";
