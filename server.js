@@ -35,16 +35,17 @@ var APIUSERPWD;
 var USERS = [];
 var LoggedInUsers;		// array of socket ids for all logged in users
 var ApiDataNotReady;
+var FirstReportNotReady;
 var Rep_params,Rep_callback,Rep_socket;	// globals used for API call
-
+var Report1and2;
 var AuthUsers = new Object();	
 
 //******* class for chat session data
-var CSession = function() {
+var Report12 = function() {
 		this.sessionID = 0;		//unique
 		this.sessionType = 0;
-		this.tools = 0;	// incident tools used - e.g. remote control sessions
-		this.resolved = 0;	// how many got resolved using chat without an incident
+		this.RC = false;	// incident tools used - e.g. remote control sessions
+		this.resolved = false;	// how many got resolved using chat without an incident
 		this.name = "";		// agent name
 		this.department = "";	// agent's dept
 		this.start = 0;	// start time
@@ -54,6 +55,8 @@ var CSession = function() {
 		this.activeTime = 0;	//
 		this.workTime = 0;	// 
 		this.wrapTime = 0;	// 
+		this.surveyScore = "";	// Score from customer sat survey
+		this.surveyComment = "";	// feedback text from CSAT survey
 };
 
 //******* class for hierarchy (configured user) data
@@ -94,6 +97,8 @@ var TPerformance = function() {
 		this.avgPickup = "";	// average pickup speed
 		this.avgDuration = "";		// average duration
 		this.avgWorkTime = "";		// average work time
+		this.totalActiveTime = "";		// total active time
+		this.totalWorkTime = "";		//  work time
 };
 
 //******* Get BoldChat API Credentials
@@ -190,93 +195,35 @@ io.on('connection', function(socket){
 	});
 	
 	// session report (report area=0)
-	socket.on('SessReportByChannelRequest',function(data){
+	socket.on('Report12Request',function(data){
 		if(isLoggedIn(socket))
 		{
-			debugLog("params",data);
+			ApiDataNotReady = 0;
+//			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
+				FirstReportNotReady = true;
 				setReport(SESSION_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
 				Rep_callback = SessReportCallback;
 				Rep_socket = socket;
 				getReport();
-			}
-		}
-	});
-	
-	// session report (report area=0)
-	socket.on('SessReportByNodeRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(SESSION_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=NODE";
-				Rep_callback = SessReportCallback;
-				Rep_socket = socket;
-				getReport();
+				getCSData();
 			}
 		}
 	});
 	
 	// customer survey report
-	socket.on('CSReportByChannelRequest',function(data){
+	socket.on('CSReportRequest',function(data){
 		if(isLoggedIn(socket))
 		{
-			debugLog("params",data);
+			ApiDataNotReady = 0;
+//			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
 				setReport(CSURVEY_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
+				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
 				Rep_callback = CSReportCallback;
-				Rep_socket = socket;
-				getReport();
-			}
-		}
-	});
-	// customer survey report
-	socket.on('CSReportByNodeRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(CSURVEY_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=NODE";
-				Rep_callback = CSReportCallback;
-				Rep_socket = socket;
-				getReport();
-			}
-		}
-	});
-	
-	// technician survey report
-	socket.on('TSReportByChannelRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(TSURVEY_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
-				Rep_callback = TSReportCallback;
-				Rep_socket = socket;
-				getReport();
-			}
-		}
-	});
-	// technician survey report
-	socket.on('TSReportByNodeRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(TSURVEY_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=NODE";
-				Rep_callback = TSReportCallback;
 				Rep_socket = socket;
 				getReport();
 			}
@@ -284,35 +231,21 @@ io.on('connection', function(socket){
 	});
 
 	// performance report
-	socket.on('PerfReportByChannelRequest',function(data){
+	socket.on('Report3Request',function(data){
 		if(isLoggedIn(socket))
 		{
-			debugLog("params",data);
+			ApiDataNotReady = 0;
+//			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
 				setReport(PERF_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=CHANNEL";
-				Rep_callback = PerfReportCallback;
+				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
+				Rep_callback = Report3Callback;
 				Rep_socket = socket;
 				getReport();
 			}
 		}
 	});
-	// performance report
-	socket.on('PerfReportByNodeRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(PERF_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype=NODE";
-				Rep_callback = PerfReportCallback;
-				Rep_socket = socket;
-				getReport();
-			}
-		}
-	});	
 });
 
 /*process.on('uncaughtException', function (err) {
@@ -355,7 +288,6 @@ function validPassword(plain,hashed) {
 }
 
 function initialiseGlobals() {
-	ApiDataNotReady = 0;
 	LoggedInUsers = new Object();
 }
 
@@ -397,6 +329,18 @@ function getReport() {
 	}
 
 	getApiData("getReport.aspx",Rep_params,Rep_callback,Rep_socket);
+}
+
+function getCSData() {
+	
+	if(ApiDataNotReady || FirstReportNotReady)
+	{
+		console.log("waiting for API");
+		setTimeout(getCSData,1000);		// try again a second later
+		return;
+	}
+
+	getApiData("getReport.aspx",Rep_params,CSDataCallback,Rep_socket);
 }
 
 function debugLog(name, dataobj) {
@@ -544,10 +488,10 @@ function hierarchyCallback(data,tsock) {
 
 //Session report.
 //When converted to array first element is OK second is blank and third is the header
-function SessReportCallback(data,tsock) {
+function SessReportCallback(data,socket) {
 	var resIndex,toolIndex,typeIndex,SIDIndex,tgroupIndex,tnameIndex,endIndex,startIndex;
 	var waitIndex,totalIndex,activeIndex,workIndex,wrapIndex;
-	var tsession;
+	var tsession,tools;
 	var sdata = data.toString();
 	var arr = new Array();
 	var head = new Array();
@@ -591,18 +535,20 @@ function SessReportCallback(data,tsock) {
 			wrapIndex = i;	
 	}
 	
+	Report1and2 = new Array();		// initialise report array
 //		console.log("No. of entries:"+arr.length);
-	var CSessions = new Array();
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		tsession = arr[i];	
 		var head = tsession.split("|");
 		if(typeof head[SIDIndex] != 'undefined')
 		{
-			var csession = new CSession();
+			var csession = new Report12();
 			csession.sessionID = head[SIDIndex];
 			csession.sessionType = head[typeIndex];
-			csession.tools = head[toolIndex];
+			tools = head[toolIndex];
+			if(tools.includes("RC") >= 0)			// if a remote control session
+				csession.RC = true;
 			csession.resolved = head[resIndex];
 			csession.name = head[tnameIndex];
 			csession.department = head[tgroupIndex];
@@ -613,14 +559,80 @@ function SessReportCallback(data,tsock) {
 			csession.activeTime = head[activeIndex];
 			csession.workTime = head[workIndex];
 			csession.wrapTime = head[wrapIndex];
-			CSessions.push(csession);		// add to list
+			Report1and2.push(csession);		// add to list
 		}
 	}
-	console.log("No. Chat sessions: "+CSessions.length);
-	tsock.emit('SessReportResponse',CSessions);
+	console.log("No. Chat sessions: "+Report1and2.length);
+	// now get CS survey data and tag on to this array
+	getApiData("setReportArea.aspx","area="+CSURVEY_REPORT,dummyCallback,socket);
+	sleep(100);
+	FirstReportNotReady = false;
 }
 
-//Customer survey report.
+//Customer survey report - amend to report 1 and 2 data.
+//When converted to array first element is OK second is blank and third is the header
+function CSDataCallback(data,socket) {
+	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex,commentIndex;
+	var sid,rating,comment;
+	var scount = 0;
+	var sdata = data.toString();
+	var arr = new Array();
+	var head = new Array();
+	arr = sdata.split("\n");
+	if(arr[0] !== "OK")			// API request not successful
+	{
+		console.log("API Request Status: "+arr[0]);
+		return(tsock.emit('errorResponse',arr[0]));
+	}
+	
+	var header = arr[2];	
+//	console.log("header: "+header);
+	head = header.split("|");
+	for(var i in head)
+	{
+		if(head[i] == "Source")
+			sourceIndex = i;
+		else if(head[i] == "Session ID")
+			SIDIndex = i;
+		else if(head[i] == "Date")
+			dateIndex = i;
+		else if(head[i] == "End user's First name")
+			usernameIndex = i;
+		else if(head[i].includes("Please rate your product"))
+			rateIndex = i;
+		else if(head[i].includes("comments"))
+			commentIndex = i;
+		else if(head[i] == "Technician Name")
+			technameIndex = i;
+		else if(head[i] == "Technician ID")
+			techIDIndex = i;
+	}
+	
+//		console.log("No. of entries:"+arr.length);
+	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
+	{
+		var head = arr[i].split("|");
+		if(typeof head[SIDIndex] != 'undefined')
+		{
+			sid = head[SIDIndex];
+			rating = head[rateIndex];
+			comment = head[commentIndex];
+			scount++;
+			for(var j in Report1and2)		// add to report
+			{
+				if(sid == Report1and2[j].sessionID)
+				{
+					Report1and2[j].surveyScore = rating;
+					Report1and2[j].surveyComment = comment;
+				}
+			}
+		}
+	}
+	console.log("No. Surveys: "+scount);
+	socket.emit('Report12Response',Report1and2);
+}
+
+//Customer survey report standalone.
 //When converted to array first element is OK second is blank and third is the header
 function CSReportCallback(data,tsock) {
 	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex;
@@ -630,7 +642,7 @@ function CSReportCallback(data,tsock) {
 	arr = sdata.split("\n");
 	if(arr[0] !== "OK")			// API request not successful
 	{
-//		console.log("API Request Status: "+arr[0]);
+		console.log("API Request Status: "+arr[0]);
 		return(tsock.emit('errorResponse',arr[0]));
 	}
 	
@@ -736,8 +748,8 @@ function TSReportCallback(data,tsock) {
 
 //Performance report.
 //When converted to array first element is OK second is blank and third is the header
-function PerfReportCallback(data,tsock) {
-	var technameIndex,techIDIndex,nosessIndex,pickupIndex,tltimeIndex,wtimeIndex,durationIndex;
+function Report3Callback(data,tsock) {
+	var technameIndex,techIDIndex,nosessIndex,pickupIndex,tltimeIndex,wtimeIndex,durationIndex,tatimeIndex,twtimeIndex;
 	var sdata = data.toString();
 	var arr = new Array();
 	var head = new Array();
@@ -767,10 +779,14 @@ function PerfReportCallback(data,tsock) {
 			durationIndex = i;
 		else if(head[i].includes("Average Work"))
 			wtimeIndex = i;	
+		else if(head[i].includes("Total Active"))
+			tatimeIndex = i;	
+		else if(head[i].includes("Total Work"))
+			twtimeIndex = i;	
 	}
 	
 //		console.log("No. of entries:"+arr.length);
-	var TPerformances = new Array();
+	var Report3 = new Array();
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{	
 		var head = arr[i].split("|");
@@ -784,11 +800,13 @@ function PerfReportCallback(data,tsock) {
 			tperf.avgPickup = head[pickupIndex];
 			tperf.avgDuration = head[durationIndex];
 			tperf.avgWorkTime = head[wtimeIndex];
-			TPerformances.push(tperf);		// add to list
+			tperf.totalActiveTime = head[tatimeIndex];
+			tperf.totalWorkTime = head[twtimeIndex];
+			Report3.push(tperf);		// add to list
 		}
 	}
-	console.log("No. Technicians: "+TPerformances.length);
-	tsock.emit('PerfReportResponse',TPerformances);
+	console.log("No. Technicians: "+Report3.length);
+	tsock.emit('Report3Response',Report3);
 }
 
 function removeSocket(id, evname) {
