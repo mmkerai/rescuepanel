@@ -547,7 +547,7 @@ function SessReportCallback(data,socket) {
 			csession.sessionID = head[SIDIndex];
 			csession.sessionType = head[typeIndex];
 			tools = head[toolIndex];
-			if(tools.includes("RC") >= 0)			// if a remote control session
+			if(tools.indexOf("RC") >= 0)			// if a remote control session
 				csession.RC = true;
 			csession.resolved = head[resIndex];
 			csession.name = head[tnameIndex];
