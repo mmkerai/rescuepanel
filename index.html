@@ -1,76 +1,179 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-	<title>Rescue Node.js test script</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"/>
-	<script src="/socket.io/socket.io.js"></script>
-	<script src="/index.js"></script>
+  <title>Accenture Rescue Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- jQuery from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <!-- Local jQueryUI -->
+  <link rel="stylesheet" href="jquery-ui-1.12.1/jquery-ui.css">
+  <script type="text/javascript" src="jquery-ui-1.12.1/jquery-ui.min.js"></script>
+
+  <!-- Chosen Menu replacement from CDN (not used atm)-->
+  <!-- 
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.6.2/chosen.css">
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.6.2/chosen.jquery.min.js"></script>
+	 -->
+
+  <!-- Tabulator from CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/2.11.0/tabulator.min.css" rel="stylesheet">
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/2.11.0/tabulator.min.js"></script>
+
+  <!-- Moment dates formatting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.0/moment.min.js"></script>
+
+  <!-- 	notify library (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/notify/0.4.2/notify.min.js"></script>
+	
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Scripts -->
+  <script src="/index.js"></script>
+
+  <style>
+    body {
+      font-size: 1.2em;
+      font-family: sans-serif;
+    }
+
+    #hierarchy {
+      width: 30em;
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 1em;
+      border-style: outset;
+    }
+
+    #login {
+      position: fixed;
+      display: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 1em;
+      border-style: outset;
+    }
+
+    button {
+      margin: 0.7em 0.2em;
+    }
+
+    #mainreport12,
+    #mainreport3 {
+      width: 100%;
+      display: none;
+    }
+
+    #reportparameters {
+      display: flex;
+      height: 3.4em;
+    }
+
+    input{
+      height: 1.2em;
+    }
+
+    input[type="text"] {
+      width: 6.3em;
+    }
+
+    #spinner {
+      background: url(ajax-loader.gif) no-repeat center center;
+      background-size: contain;
+      width: 5em;
+      height: 5em;
+      position: fixed;
+      display: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #groupoption, #download12, #download3{
+      display: none;
+    }
+		
+		.txtinputs{
+		margin: 0.2em 0.8em;		
+		}
+		
+		#signinform{
+		text-align: center;		
+		}
+		
+		#username, #password{
+			min-width: 12em;
+		}
+		
+		
+  </style>
 </head>
+
 <body>
-<h2><center>Rescue Node.js test script</center></h2>
-<p>&nbsp;</p>
-<div class="wrapper col-xs-12">
-	<div class="col-xs-2">
-		<div class='btn btn-primary' id='myname' onClick='showLoginForm()'>Log Me In</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-primary' onClick='getHierarchy()'>Get Hierarchy</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-primary' onClick='getAccount()'>Get Account</div>
-	</div>
-	<div class="col-xs-3">
-		<div class='btn btn-danger' onClick='showNodeForm(0)'>Get Report1&2 By Channel</div>
-	</div>
-	<div class="col-xs-3">
-		<div class='btn btn-danger' onClick='showNodeForm(1)'>Get Report1&2 By Node</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-warning' onClick='showNodeForm(2)'>Get Report3 By Channel</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-warning' onClick='showNodeForm(3)'>Get Report3 By Node</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-warning' onClick='showNodeForm(4)'>Get CS Report By Channel</div>
-	</div>
-	<div class="col-xs-2">
-		<div class='btn btn-warning' onClick='showNodeForm(5)'>Get CS Report By Node</div>
-	</div>
-</div>
-<p>&nbsp;</p>
-<script>loginForm()</script>
-<div class="form-horizontal col-xs-9 col-xs-offset-3">
-<form id="nodeid">
-	<div class="form-group">
-		<label class="control-label col-xs-2">ID:</label>
-		<div class="col-xs-3">
-			<input class="form-control" type="text" id="nodeID" value=""></input>
-		</div>
-	</div>
-	<div class="form-group">
-		<label class="control-label col-xs-2">Start Date:</label>
-		<div class="col-xs-3">
-			<input class="form-control" type="text" id="bdate" value=""></input>
-		</div>
-	</div>
-	<div class="form-group">
-		<label class="control-label col-xs-2">End Date:</label>
-		<div class="col-xs-3">
-			<input class="form-control" type="text" id="edate" value=""></input>
-		</div>
-	</div>
-	<div class="col-xs-6 col-xs-offset-2">
-		<div class='btn btn-danger' id='report'>Get Report</div>
-	</div>
-</form>
-</div>
-<p>&nbsp;</p>
-	<p class="text-center" id="error"></p>
-	<p class="text-center" id="message1"></p>
-	<p class="text-center" id="message2"></p>
-	<p class="text-center" id="message3"></p>
+  <div>
+    <button class="ui-button ui-widget ui-corner-all" id='myname' onClick='showLoginForm()'>Log Me In</button>
+    <button class="ui-button ui-widget ui-corner-all" onClick='getHierarchy()'>Get Hierarchy</button>
+  </div>
+
+  <div id="login">
+    <form id="signinform">
+      <label>Username:</label><br>
+      <input id="username" type="text"></input><br>
+      <label>Password:</label><br>
+      <input id="password" type="password"></input><br>
+      <button class="ui-button ui-widget ui-corner-all" type="submit">Sign In</button>
+    </form>
+  </div>
+
+  <div id="hierarchy">
+  </div>
+
+  <div id="reportparameters">
+    <label>ID:</label>
+    <input type="text" id="nodeID" value=""></input>
+    <div>
+      <input type="radio" id="C" name="reporttype" value="CHANNEL" checked>
+      <label for="C">By Channel
+			</label><br>
+      <input type="radio" id="N" name="reporttype" value="NODE">
+      <label for="N">By Node
+			</label>
+    </div>
+    <div>
+      <input type="radio" id="S" name="reportname" value="Report12Request" checked>
+      <label for="S">Session & Customer Survey
+		</label><br>
+      <input type="radio" id="P" name="reportname" value="Report3Request">
+      <label for="P">Performance
+		</label>
+    </div>
+    <div class="txtinputs">
+      <label>Start Date:</label><br>
+      <input type="text" id="bdate" value=""></input>
+    </div>
+    <div class="txtinputs">
+      <label>End Date:</label><br>
+      <input type="text" id="edate" value=""></input>
+    </div>
+    <button class="ui-button ui-widget ui-corner-all" onclick="getReport();" id='report'>Run Report</button>
+    <button id="groupoption" class="ui-button ui-widget ui-corner-all" onclick="groupbyagent();">Toggle Group by Agent</button>
+		<button id="download12" class="ui-button ui-widget ui-corner-all" onClick='download12()'>Download CSV</button>
+  	<button id="download3" class="ui-button ui-widget ui-corner-all" onClick='download3()'>Download CSV</button>
+  </div>
+
+  <div id="mainreport12">
+  </div>
+
+  <div id="mainreport3">
+  </div>
+
+  <div id="spinner"></div>
+
 </body>
+
 </html>

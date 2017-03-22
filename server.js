@@ -146,6 +146,22 @@ app.get('/lmilogo.png', function(req, res){
 app.get('/index.js', function(req, res){
 	res.sendFile(__dirname + '/index.js');
 });
+/* mscala */
+app.get('/ajax-loader.gif', function(req, res){
+	res.sendFile(__dirname + '/ajax-loader.gif');
+});
+app.get('/chosen-sprite@2x.png', function(req, res){
+	res.sendFile(__dirname + '/chosen-sprite@2x.png');
+});
+app.get('/chosen-sprite@2x.png', function(req, res){
+	res.sendFile(__dirname + '/chosen-sprite@2x.png');
+});
+app.get('/jquery-ui-1.12.1/*', function(req, res){
+	res.sendFile(__dirname + req.path);
+});
+/* end mscala */
+
+
 
 // Set up socket actions and responses
 io.on('connection', function(socket){
@@ -199,7 +215,7 @@ io.on('connection', function(socket){
 		if(isLoggedIn(socket))
 		{
 			ApiDataNotReady = 0;
-//			debugLog("params",data);
+			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
 				FirstReportNotReady = true;
@@ -311,8 +327,8 @@ function setReport(report,data,socket) {
 	var reportArea = "area="+report;
 	var dates = "bdate="+data.bdate+"&edate="+data.edate;				
 
-	getApiData("setDateFormat.aspx",DATE_FORMAT,dummyCallback,socket);
-	sleep(100);
+	//getApiData("setDateFormat.aspx",DATE_FORMAT,dummyCallback,socket);
+	//sleep(100);
 	getApiData("setReportArea.aspx",reportArea,dummyCallback,socket);
 	sleep(100);
 	getApiData("setReportDate.aspx",dates,dummyCallback,socket);
@@ -498,12 +514,12 @@ function SessReportCallback(data,socket) {
 	arr = sdata.split("\n");
 	if(arr[0] !== "OK")			// API request not successful
 	{
-//		console.log("API Request Status: "+arr[0]);
+		console.log("API Request Status: "+arr[0]);
 		return(tsock.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
-//	console.log("header: "+header);
+	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -536,7 +552,7 @@ function SessReportCallback(data,socket) {
 	}
 	
 	Report1and2 = new Array();		// initialise report array
-//		console.log("No. of entries:"+arr.length);
+		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		tsession = arr[i];	
@@ -586,7 +602,7 @@ function CSDataCallback(data,socket) {
 	}
 	
 	var header = arr[2];	
-//	console.log("header: "+header);
+	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -608,7 +624,7 @@ function CSDataCallback(data,socket) {
 			techIDIndex = i;
 	}
 	
-//		console.log("No. of entries:"+arr.length);
+		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		var head = arr[i].split("|");
