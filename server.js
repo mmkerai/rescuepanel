@@ -1,6 +1,6 @@
 /* Rescue Search Panel Backend.
  * This script should run on Heroku
- * Version 0.1 Jan 2017
+ * Version 0.2 22 March 2017
  */
 
 //****** Set up Express Server and socket.io
@@ -161,8 +161,6 @@ app.get('/jquery-ui-1.12.1/*', function(req, res){
 });
 /* end mscala */
 
-
-
 // Set up socket actions and responses
 io.on('connection', function(socket){
 	//  authenticate user name and password
@@ -215,7 +213,7 @@ io.on('connection', function(socket){
 		if(isLoggedIn(socket))
 		{
 			ApiDataNotReady = 0;
-			debugLog("params",data);
+//			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
 				FirstReportNotReady = true;
@@ -339,7 +337,7 @@ function getReport() {
 	
 	if(ApiDataNotReady)
 	{
-		console.log("waiting for API");
+		console.log("waiting for API response");
 		setTimeout(getReport,1000);		// try again a second later
 		return;
 	}
@@ -514,12 +512,12 @@ function SessReportCallback(data,socket) {
 	arr = sdata.split("\n");
 	if(arr[0] !== "OK")			// API request not successful
 	{
-		console.log("API Request Status: "+arr[0]);
-		return(tsock.emit('errorResponse',arr[0]));
+//		console.log("API Request Status: "+arr[0]);
+		return(socket.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
-	console.log("header: "+header);
+//	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -552,11 +550,12 @@ function SessReportCallback(data,socket) {
 	}
 	
 	Report1and2 = new Array();		// initialise report array
-		console.log("No. of entries:"+arr.length);
+//		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
-		tsession = arr[i];	
-		var head = tsession.split("|");
+		tsession = arr[i];
+		tools = "";
+		head = tsession.split("|");
 		if(typeof head[SIDIndex] != 'undefined')
 		{
 			var csession = new Report12();
@@ -598,11 +597,11 @@ function CSDataCallback(data,socket) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 		console.log("API Request Status: "+arr[0]);
-		return(tsock.emit('errorResponse',arr[0]));
+		return(socket.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
-	console.log("header: "+header);
+//	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -624,7 +623,7 @@ function CSDataCallback(data,socket) {
 			techIDIndex = i;
 	}
 	
-		console.log("No. of entries:"+arr.length);
+//		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
 		var head = arr[i].split("|");
@@ -650,7 +649,7 @@ function CSDataCallback(data,socket) {
 
 //Customer survey report standalone.
 //When converted to array first element is OK second is blank and third is the header
-function CSReportCallback(data,tsock) {
+function CSReportCallback(data,socket) {
 	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex;
 	var sdata = data.toString();
 	var arr = new Array();
@@ -659,7 +658,7 @@ function CSReportCallback(data,tsock) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 		console.log("API Request Status: "+arr[0]);
-		return(tsock.emit('errorResponse',arr[0]));
+		return(socket.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
@@ -702,12 +701,12 @@ function CSReportCallback(data,tsock) {
 		}
 	}
 	console.log("No. Surveys: "+CSurveys.length);
-	tsock.emit('CSReportResponse',CSurveys);
+	socket.emit('CSReportResponse',CSurveys);
 }
 
 //Technician survey report.
 //When converted to array first element is OK second is blank and third is the header
-function TSReportCallback(data,tsock) {
+function TSReportCallback(data,socket) {
 	var sourceIndex,SIDIndex,dateIndex,usernameIndex,evalIndex,technameIndex,techIDIndex;
 	var sdata = data.toString();
 	var arr = new Array();
@@ -716,7 +715,7 @@ function TSReportCallback(data,tsock) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 //		console.log("API Request Status: "+arr[0]);
-		return(tsock.emit('errorResponse',arr[0]));
+		return(socket.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
@@ -759,12 +758,12 @@ function TSReportCallback(data,tsock) {
 		}
 	}
 	console.log("No. Surveys: "+TSurveys.length);
-	tsock.emit('TSReportResponse',TSurveys);
+	socket.emit('TSReportResponse',TSurveys);
 }
 
 //Performance report.
 //When converted to array first element is OK second is blank and third is the header
-function Report3Callback(data,tsock) {
+function Report3Callback(data,socket) {
 	var technameIndex,techIDIndex,nosessIndex,pickupIndex,tltimeIndex,wtimeIndex,durationIndex,tatimeIndex,twtimeIndex;
 	var sdata = data.toString();
 	var arr = new Array();
@@ -773,7 +772,7 @@ function Report3Callback(data,tsock) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 //		console.log("API Request Status: "+arr[0]);
-		return(tsock.emit('errorResponse',arr[0]));
+		return(socket.emit('errorResponse',arr[0]));
 	}
 	
 	var header = arr[2];	
@@ -805,7 +804,7 @@ function Report3Callback(data,tsock) {
 	var Report3 = new Array();
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{	
-		var head = arr[i].split("|");
+		head = arr[i].split("|");
 		if(typeof head[techIDIndex] != 'undefined')
 		{
 			var tperf = new TPerformance();
@@ -822,7 +821,7 @@ function Report3Callback(data,tsock) {
 		}
 	}
 	console.log("No. Technicians: "+Report3.length);
-	tsock.emit('Report3Response',Report3);
+	socket.emit('Report3Response',Report3);
 }
 
 function removeSocket(id, evname) {
