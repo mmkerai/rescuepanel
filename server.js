@@ -3,7 +3,6 @@
  * Version 0.3 24 March 2017
  */
 
- 
 //****** Set up Express Server and socket.io
 var http = require('http');
 var https = require('https');
