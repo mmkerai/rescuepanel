@@ -1,5 +1,9 @@
 var socket = io.connect();
+
+// Globals
 grouped = false;
+selectedEnv = "1644565702"; //default env for reports
+selectedType = "CHANNEL";	// default type
 
 function getAccount() {
   socket.emit('accountRequest', "");
@@ -86,8 +90,8 @@ function getReport() {
   $("#groupoption").hide();
   $("#download12").hide();
   $("#download3").hide();
-  var nid = $('#nodeID').val();
-  var reptype = $("input[name='reporttype']:checked").val();
+  var nid = selectedEnv; //$('#nodeID').val();
+  var reptype = selectedType; //$("input[name='reporttype']:checked").val();
   var repname = $("input[name='reportname']:checked").val();
   var bdate = $('#bdate').val();
   var edate = $('#edate').val();
@@ -132,6 +136,9 @@ function saveCookie(name, value, delay) {
 }
 /**DOCUMENT IS READY **/
 $(function() {
+	
+	$('#nodeID').val(selectedEnv);
+	
   /* configuration for date/time sorters */
   $.widget("ui.tabulator", $.ui.tabulator, {
     sorters: {
@@ -180,7 +187,7 @@ $(function() {
     $("#groupoption").show();
     $("#download12").show();
     $("#download3").hide();
-    $("#mainreport12").tabulator("setData", data);
+		$("#mainreport12").tabulator("setData", data);
   });
   socket.on('Report3Response', function(data) { // this returns an array of objects
     $("#spinner").hide();
@@ -189,7 +196,10 @@ $(function() {
     $("#download3").show();
     $("#mainreport3").tabulator("setData", data);
   });
+	
+	
   //datepickers
+	
   $("#bdate").datepicker({
     onClose: function() {
       $("#edate").datepicker(
@@ -208,16 +218,19 @@ $(function() {
       );
     }
   });
-  $("#bdate").datepicker("setDate", "-1m");
+	
+  $("#bdate").datepicker("setDate", new Date()); // was "-1m";
   $("#edate").datepicker("setDate", new Date());
-  $("#edate").datepicker("change", {
+  /*
+	$("#edate").datepicker("change", {
     minDate: new Date($("#bdate").val())
   });
   $("#bdate").datepicker("change", {
     maxDate: new Date($("#edate").val())
   });
+	*/
   $("#hierarchy").tabulator({
-    height: "40em", // set height of table (optional)
+    height: "50%", // set height of table
     fitColumns: true, //fit columns to width of table (optional)
     columns: [ //Define Table Columns
       {
@@ -228,6 +241,8 @@ $(function() {
         headerFilter: true,
         onClick: function(e, cell, val, data) {
           $("#nodeID").val(val);
+					selectedEnv = val+"";
+					selectedType = ((data.type == "Channel\n\n") ? "CHANNEL" : "NODE"); 
           $("#hierarchy").hide(1000);
         }
       },
@@ -248,7 +263,7 @@ $(function() {
     ],
   });
   $("#mainreport12").tabulator({
-    height: "52em", // set height of table (optional)
+		height: Math.round($(window).height()*0.82),
     fitColumns: true, //fit columns to width of table (optional)
     //dateFormat: "dd/mm/yyyy",
     sortBy: 'Name', // when data is loaded into the table, sort it by name

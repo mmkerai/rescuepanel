@@ -381,7 +381,7 @@ function isLoggedIn(tsock) {
 }
 
 function isValidParams(params,tsock) {
-	if(params.id === undefined || !(params.id.match(/^[0-9]+$/) != null))
+	if(params.id === undefined || !(params.id.match(/^[0-9]+$/)))		
 	{
 		tsock.emit('errorResponse',"ID is incorrect");
 		return;		
