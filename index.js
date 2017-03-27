@@ -93,7 +93,7 @@ function getReport() {
   var nid = selectedEnv; //$('#nodeID').val();
   var reptype = selectedType; //$("input[name='reporttype']:checked").val();
   var repname = $("input[name='reportname']:checked").val();
-  var bdate = $('#bdate').val();
+  var bdate = $('#bdate').val(); //new method
   var edate = $('#edate').val();
   var params = {
     "id": nid,
