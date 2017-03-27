@@ -1,8 +1,9 @@
 /* Rescue Search Panel Backend.
  * This script should run on Heroku
- * Version 0.2 22 March 2017
+ * Version 0.3 24 March 2017
  */
 
+ 
 //****** Set up Express Server and socket.io
 var http = require('http');
 var https = require('https');
@@ -33,6 +34,7 @@ var EnVars;
 var APIUSERNAME;
 var APIUSERPWD;
 var USERS = [];
+var ENVIRONMENT;
 var LoggedInUsers;		// array of socket ids for all logged in users
 var ApiDataNotReady;
 var FirstReportNotReady;
@@ -110,6 +112,8 @@ try
 	APIUSERNAME = EnVars.APIUSERNAME || 0;
 	APIUSERPWD = EnVars.APIUSERPWD || 0;
 	USERS = EnVars.USERS || 0;
+	ENVIRONMENT = EnVars.ENVIRONMENT || "Error";
+	console.log("Env is: "+ENVIRONMENT);
 //	debugLog("USER",USERS[0]);
 }
 catch(e)
@@ -120,6 +124,7 @@ catch(e)
 		APIUSERNAME = process.env.APIUSERNAME || 0;
 		APIUSERPWD = process.env.APIUSERPWD || 0;
 		USERS = JSON.parse(process.env.USERS) || {};
+		ENVIRONMENT = process.env.ENVIRONMENT || "Error";
 	}
 	else
 		console.log("Error code: "+e.code);
@@ -376,7 +381,7 @@ function isLoggedIn(tsock) {
 }
 
 function isValidParams(params,tsock) {
-	if(params.id === undefined || !(params.id.match(/^[0-9]+$/) != null))
+	if(params.id === undefined || !(params.id.match(/^[0-9]+$/)))		
 	{
 		tsock.emit('errorResponse',"ID is incorrect");
 		return;		
@@ -495,7 +500,8 @@ function hierarchyCallback(data,tsock) {
 		th.nodeID = line.substring(0,pindex-1);
 		th.name = line.substring(nindex+5,eindex-1);
 		th.type = line.substring(tindex+5);
-		Hierarchy.push(th);
+		if(th.name.indexOf(ENVIRONMENT) != -1)
+			Hierarchy.push(th);
 	}
 	tsock.emit('hierarchyResponse',Hierarchy);
 }

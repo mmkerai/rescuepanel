@@ -33,9 +33,12 @@
   <script src="/index.js"></script>
 
   <style>
-    body {
+	
+		body {
       font-size: 1.2em;
       font-family: sans-serif;
+			background-color: lightsteelblue;
+			overflow:auto;
     }
 
     #hierarchy {
@@ -61,6 +64,7 @@
 
     button {
       margin: 0.7em 0.2em;
+			min-width: 9.2em;
     }
 
     #mainreport12,
@@ -76,6 +80,7 @@
 
     input{
       height: 1.2em;
+			font-size: 0.8em;
     }
 
     input[type="text"] {
@@ -117,7 +122,10 @@
 <body>
   <div>
     <button class="ui-button ui-widget ui-corner-all" id='myname' onClick='showLoginForm()'>Log Me In</button>
-    <button class="ui-button ui-widget ui-corner-all" onClick='getHierarchy()'>Get Hierarchy</button>
+    <button class="ui-button ui-widget ui-corner-all" onClick='getHierarchy()'>Get Environment</button>
+		<label>ID:</label>
+		<!-- ID is read-only now -->
+    <input type="text" id="nodeID" value="" disabled></input> 
   </div>
 
   <div id="login">
@@ -134,17 +142,16 @@
   </div>
 
   <div id="reportparameters">
-    <label>ID:</label>
-    <input type="text" id="nodeID" value=""></input>
-    <div>
+     <!--  Not needed anymore
+		<div>
       <input type="radio" id="C" name="reporttype" value="CHANNEL" checked>
       <label for="C">By Channel
 			</label><br>
       <input type="radio" id="N" name="reporttype" value="NODE">
       <label for="N">By Node
 			</label>
-    </div>
-    <div>
+    </div> -->    
+		<div>
       <input type="radio" id="S" name="reportname" value="Report12Request" checked>
       <label for="S">Session & Customer Survey
 		</label><br>
@@ -160,10 +167,10 @@
       <label>End Date:</label><br>
       <input type="text" id="edate" value=""></input>
     </div>
-    <button class="ui-button ui-widget ui-corner-all" onclick="getReport();" id='report'>Run Report</button>
-    <button id="groupoption" class="ui-button ui-widget ui-corner-all" onclick="groupbyagent();">Toggle Group by Agent</button>
-		<button id="download12" class="ui-button ui-widget ui-corner-all" onClick='download12()'>Download CSV</button>
-  	<button id="download3" class="ui-button ui-widget ui-corner-all" onClick='download3()'>Download CSV</button>
+    <button class="ui-button ui-widget ui-corner-all" onclick="getReport();" id='report'>Report</button>
+    <button id="groupoption" class="ui-button ui-widget ui-corner-all" onclick="groupbyagent();">Group by Agent</button>
+		<button id="download12" class="ui-button ui-widget ui-corner-all" onClick='download12()'>Download</button>
+  	<button id="download3" class="ui-button ui-widget ui-corner-all" onClick='download3()'>Download</button>
   </div>
 
   <div id="mainreport12">
