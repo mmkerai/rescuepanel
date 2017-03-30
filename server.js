@@ -436,17 +436,22 @@ function reportError(emsg,socket) {
 }
 
 function isValidParams(params,tsock) {
-	if(params.id === undefined || !(params.id.match(/^[0-9]+$/)))
+	if(typeof params.id != 'string')
+	{
+		tsock.emit('errorResponse',"ID appears to be incorrect");
+		return false;		
+	}
+	if(typeof params.id === 'undefined' || !(params.id.match(/^[0-9]+$/)))
 	{
 		tsock.emit('errorResponse',"ID is incorrect");
 		return false;		
 	}
-	if(params.bdate === undefined || validateDate(params.bdate) == false)
+	if(typeof params.bdate === 'undefined' || validateDate(params.bdate) == false)
 	{
 		tsock.emit('errorResponse',"Start date is incorrect");
 		return false;		
 	}
-	if(params.edate === undefined || validateDate(params.edate) == false)
+	if(typeof params.edate === 'undefined' || validateDate(params.edate) == false)
 	{
 		tsock.emit('errorResponse',"End date is incorrect");
 		return false;		
@@ -485,7 +490,7 @@ function getApiData(method,params,fcallback,cbparam) {
 		response.on('end',function () {
 			ApiDataNotReady--;
 			var data = str;
-			if(data === undefined || data == null)
+			if(typeof data === 'undefined' || data == null)
 			{
 				reportError("No data returned: "+str,cbparam);
 				return;		// exit out if error json message received
@@ -625,7 +630,7 @@ function SessReportCallback(data,socket) {
 			csession.sessionID = head[SIDIndex];
 			csession.sessionType = head[typeIndex];
 			tools = head[toolIndex];
-			if(tools !== undefined)
+			if(typeof tools !== 'undefined')
 				if(tools.indexOf("RC") >= 0)			// if a remote control session
 					csession.RC = true;
 			csession.resolved = head[resIndex];
