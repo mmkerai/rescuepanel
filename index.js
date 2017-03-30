@@ -94,7 +94,7 @@ function getReport() {
   var reptype = selectedType; //$("input[name='reporttype']:checked").val();
   var repname = $("input[name='reportname']:checked").val();
   var bdate = $('#bdate').val();
-  var edate = $('#edate').val();
+	var edate = $('#edate').val(); 
   var params = {
     "id": nid,
     "bdate": bdate,
