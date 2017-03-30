@@ -1,14 +1,12 @@
 /* Rescue Search Panel Backend.
  * This script should run on Heroku
- * Version 0.3 24 March 2017
+ * Version 0.3 30 March 2017
  */
 
 //****** Set up Express Server and socket.io
 var http = require('http');
 var https = require('https');
 var app = require('express')();
-var	server = http.createServer(app);
-var	io = require('socket.io').listen(server);
 var fs = require('fs');
 var crypto = require('crypto');
 var bodyParser = require('body-parser');
@@ -19,7 +17,8 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 
 //********** Get port used by Heroku or use a default
 var PORT = Number(process.env.PORT || 7979);
-server.listen(PORT);
+var server = http.createServer(app).listen(PORT);
+var	io = require('socket.io').listen(server);
 
 //****** Global Constants
 const SESSION_REPORT = 0;
@@ -27,19 +26,29 @@ const CSURVEY_REPORT = 1;
 const TSURVEY_REPORT = 8;
 const PERF_REPORT = 4;
 const DATE_FORMAT = "dateformat=DDMMYY";
+const REPORTROOM = "auto_perf_report";	// socket room name for auto reports
 
 //********** Global variable (all should begin with a capital letter)
 var EnVars;
 var APIUSERNAME;
 var APIUSERPWD;
+var AUTHCODE;
 var USERS = [];
+var IDFORAUTO;	// rescue hierarchy ID for auto refresh
+var IDTYPEAUTO;	// id type - channel or node
 var ENVIRONMENT;
+var Hierarchy;
 var LoggedInUsers;		// array of socket ids for all logged in users
-var ApiDataNotReady;
-var FirstReportNotReady;
-var Rep_params,Rep_callback,Rep_socket;	// globals used for API call
+var ApiDataNotReady = 0;
+var ReportInProgress;
+var FirstReportReady;
 var Report1and2;
-var AuthUsers = new Object();	
+var R2timer;
+var R1timer;
+var AutoRtimer;
+var AuthUsers = new Object();
+var AutoReport = new Array();
+var EndOfDay;
 
 //******* class for chat session data
 var Report12 = function() {
@@ -110,8 +119,10 @@ try
 	EnVars = JSON.parse(fs.readFileSync('config.json', 'utf8'));
 	APIUSERNAME = EnVars.APIUSERNAME || 0;
 	APIUSERPWD = EnVars.APIUSERPWD || 0;
-	USERS = EnVars.USERS || 0;
+	USERS = EnVars.USERS || [];
 	ENVIRONMENT = EnVars.ENVIRONMENT || "Error";
+	IDFORAUTO = EnVars.IDFORAUTO || 0;		
+	IDTYPEAUTO = EnVars.IDTYPEAUTO || 0;		
 	console.log("Env is: "+ENVIRONMENT);
 //	debugLog("USER",USERS[0]);
 }
@@ -122,8 +133,10 @@ catch(e)
 		console.log("Config file not found, Reading Heroku Environment Variables");
 		APIUSERNAME = process.env.APIUSERNAME || 0;
 		APIUSERPWD = process.env.APIUSERPWD || 0;
-		USERS = JSON.parse(process.env.USERS) || {};
+		USERS = JSON.parse(process.env.USERS) || [];
 		ENVIRONMENT = process.env.ENVIRONMENT || "Error";
+		IDFORAUTO = process.env.IDFORAUTO || 0;		
+		IDTYPEAUTO = process.env.IDTYPEAUTO || 0;		
 	}
 	else
 		console.log("Error code: "+e.code);
@@ -137,6 +150,11 @@ if(APIUSERNAME == 0 || APIUSERPWD == 0)
 
 loadUserCredentials();
 console.log("Config loaded successfully");
+console.log("Server started on port "+PORT);
+getApiData("requestAuthCode.aspx","email="+APIUSERNAME+"&pwd="+APIUSERPWD,authcodeCallback);
+sleep(200);
+doStartOfDay();		// initialise everything
+
 //****** process valid URL requests
 app.get('/', function(req, res){
 	res.sendFile(__dirname + '/index.html');
@@ -197,6 +215,7 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('error', function(data){
+		removeSocket(socket.id, "Socket Error");
 		console.log("Socket Error");
 	});
 
@@ -208,61 +227,57 @@ io.on('connection', function(socket){
 		if(isLoggedIn(socket))
 		{
 			console.log("Hierarchy requested");
-			getApiData("getHierarchy.aspx","",hierarchyCallback,socket);
+			socket.emit('hierarchyResponse',Hierarchy);
 		}
 	});
 	
 	// session report (report area=0)
 	socket.on('Report12Request',function(data){
-		if(isLoggedIn(socket))
+		if(isLoggedIn(socket) && checkReportStatus(socket))
 		{
 			ApiDataNotReady = 0;
 //			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
-				FirstReportNotReady = true;
+				ReportInProgress = true;
+				FirstReportReady = false;
 				setReport(SESSION_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
-				Rep_callback = SessReportCallback;
-				Rep_socket = socket;
-				getReport();
-				getCSData();
-			}
-		}
-	});
-	
-	// customer survey report
-	socket.on('CSReportRequest',function(data){
-		if(isLoggedIn(socket))
-		{
-			ApiDataNotReady = 0;
-//			debugLog("params",data);
-			if(isValidParams(data,socket))
-			{
-				setReport(CSURVEY_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
-				Rep_callback = CSReportCallback;
-				Rep_socket = socket;
-				getReport();
+				var params = "node="+data.id+"&nodetype="+data.idtype;
+				getReport1(params,SessReportCallback,socket);
+				getReport2(params,CSDataCallback,socket);
 			}
 		}
 	});
 
 	// performance report
 	socket.on('Report3Request',function(data){
-		if(isLoggedIn(socket))
+		if(isLoggedIn(socket) && checkReportStatus(socket))
 		{
 			ApiDataNotReady = 0;
-//			debugLog("params",data);
+			debugLog("params",data);
 			if(isValidParams(data,socket))
 			{
+				ReportInProgress = true;
 				setReport(PERF_REPORT,data,socket);
-				Rep_params = "node="+data.id+"&nodetype="+data.idtype;
-				Rep_callback = Report3Callback;
-				Rep_socket = socket;
-				getReport();
+				var params = "node="+data.id+"&nodetype="+data.idtype;
+				getReport1(params,Report3Callback,socket);
 			}
 		}
+	});
+	
+	// join room which does the report every 3 mins and multicasts it to all subscribers
+	socket.on('join room',function(room){
+		if(isLoggedIn(socket))
+		{
+			console.log("Joining room "+room);
+			socket.join(room);
+			socket.emit('AutoReportResponse',AutoReport);
+		}
+	});
+	
+	socket.on('leave room',function(room){
+		console.log("Leaving room "+room);
+		socket.leave(room);
 	});
 });
 
@@ -271,10 +286,6 @@ io.on('connection', function(socket){
 	console.log(estr);
 });
 */
-console.log("Server started on port "+PORT);
-doStartOfDay();		// initialise everything
-getApiData("requestAuthCode.aspx","email="+APIUSERNAME+"&pwd="+APIUSERPWD,authcodeCallback);
-
 /*
  ************* Everything below this are functions **********************************
  */
@@ -307,21 +318,45 @@ function validPassword(plain,hashed) {
 
 function initialiseGlobals() {
 	LoggedInUsers = new Object();
+	Hierarchy = new Array();		// Array of configured users in Rescue
+	EndOfDay = new Date();
+	EndOfDay.setHours(23,59,59,999);	// last milli second of the day
 }
 
 function doStartOfDay() {
 	initialiseGlobals();	// zero all memory
+	getHierachy();
+	AutoRtimer = setInterval(runAutoReport,30000);
 }
 
-function sleep(milliseconds) {
-	var start = new Date().getTime();
-	for(var i = 0; i < 1e7; i++)
+// This runs forever but only when no other report is running as the API only allows single report capability
+function runAutoReport() {
+	if(ReportInProgress)	// only run when no other report is requested
+		return;
+
+	var timeNow = new Date();		// update the time for all calculations
+	if(timeNow > EndOfDay)		// we have skipped to a new day
 	{
-		if((new Date().getTime() - start) > milliseconds)
-		{
-			break;
-		}
+		console.log(TimeNow.toISOString()+": New day started, stats reset");
+		clearTimeout(R1timer);
+		clearTimeout(R2timer);
+		clearInterval(AutoRtimer);
+		setTimeout(doStartOfDay,10000);	//restart after 10 seconds to give time for ajaxes to complete
+		return;
 	}
+	ApiDataNotReady = 0;
+	var data = new Object();
+	data["id"] = IDFORAUTO;
+	data["idtype"] = IDTYPEAUTO;
+	data["bdate"] = getFormattedDate();	// gives today's date in mm/dd/yyyy
+	data["edate"] = getFormattedDate();
+	if(isValidParams(data,io.sockets.in(REPORTROOM)))
+	{
+		ReportInProgress = true;
+		setReport(PERF_REPORT,data,io.sockets.in(REPORTROOM));
+		var params = "node="+data.id+"&nodetype="+data.idtype;
+		getReport1(params,autoReportCallback,io.sockets.in(REPORTROOM));
+	}	
 }
 
 function setReport(report,data,socket) {
@@ -329,36 +364,43 @@ function setReport(report,data,socket) {
 	var reportArea = "area="+report;
 	var dates = "bdate="+data.bdate+"&edate="+data.edate;				
 
-	//getApiData("setDateFormat.aspx",DATE_FORMAT,dummyCallback,socket);
-	//sleep(100);
 	getApiData("setReportArea.aspx",reportArea,dummyCallback,socket);
-	sleep(100);
+	sleep(200);
 	getApiData("setReportDate.aspx",dates,dummyCallback,socket);
-	sleep(100);
+	sleep(200);
 }
 
-function getReport() {
+function getHierachy() {
 	
 	if(ApiDataNotReady)
 	{
-		console.log("waiting for API response");
-		setTimeout(getReport,1000);		// try again a second later
+		console.log("Waiting for hierarchy");
+		setTimeout(getHierachy,1000);		// try again a second later
 		return;
 	}
-
-	getApiData("getReport.aspx",Rep_params,Rep_callback,Rep_socket);
+	getApiData("getHierarchy.aspx","",hierarchyCallback);
 }
 
-function getCSData() {
+function getReport1(params,callback,socket) {
 	
-	if(ApiDataNotReady || FirstReportNotReady)
+	if(ApiDataNotReady)
 	{
-		console.log("waiting for API");
-		setTimeout(getCSData,1000);		// try again a second later
+		console.log("Waiting for API response1");
+		R1timer = setTimeout(function (){getReport1(params,callback,socket)},1000);		// try again a second later
 		return;
 	}
+	getApiData("getReport.aspx",params,callback,socket);
+}
 
-	getApiData("getReport.aspx",Rep_params,CSDataCallback,Rep_socket);
+function getReport2(params,callback,socket) {
+	
+	if(ApiDataNotReady || !FirstReportReady)
+	{
+		console.log("Waiting for API response2");
+		R2timer = setTimeout(function (){getReport2(params,callback,socket)},1000);		// try again a second later
+		return;
+	}
+	getApiData("getReport.aspx",params,callback,socket);
 }
 
 function debugLog(name, dataobj) {
@@ -370,37 +412,50 @@ function debugLog(name, dataobj) {
 	}
 }
 
-function isLoggedIn(tsock) {
-	if(typeof(LoggedInUsers[tsock.id]) === 'undefined')
+function isLoggedIn(socket) {
+	if(typeof(LoggedInUsers[socket.id]) === 'undefined')
 	{
-		tsock.emit('errorResponse',"Please login");
+		socket.emit('errorResponse',"Please login");
 		return false;		
-	}
+	}			
 	return true;
 }
 
+function checkReportStatus(socket) {
+	if(ReportInProgress)
+	{
+		socket.emit('errorResponse', "Report already in progress, try again later");
+		return false;		
+	}			
+	return true;
+}
+
+function reportError(emsg,socket) {
+	socket.emit('errorResponse', emsg);
+	ReportInProgress = false;
+}
+
 function isValidParams(params,tsock) {
-	if(params.id === undefined || !(params.id.match(/^[0-9]+$/)))		
+	if(params.id === undefined || !(params.id.match(/^[0-9]+$/)))
 	{
 		tsock.emit('errorResponse',"ID is incorrect");
-		return;		
+		return false;		
 	}
 	if(params.bdate === undefined || validateDate(params.bdate) == false)
 	{
 		tsock.emit('errorResponse',"Start date is incorrect");
-		return;		
+		return false;		
 	}
 	if(params.edate === undefined || validateDate(params.edate) == false)
 	{
 		tsock.emit('errorResponse',"End date is incorrect");
-		return;		
+		return false;		
 	}	
 	return true;
 }
 
 function Rescue_API_Request(method,params,callBackFunction) {
-	var req;
-	
+	var req;	
 	if(method == "requestAuthCode.aspx")
 		req = '/API/requestAuthCode.aspx?'+params;
 	else
@@ -430,18 +485,19 @@ function getApiData(method,params,fcallback,cbparam) {
 		response.on('end',function () {
 			ApiDataNotReady--;
 			var data = str;
-			if(data === 'undefined' || data == null)
+			if(data === undefined || data == null)
 			{
-				console.log("No data returned: "+str);
+				reportError("No data returned: "+str,cbparam);
 				return;		// exit out if error json message received
 			}
 			fcallback(data,cbparam);
 		});
 		// in case there is a html error
-		response.on('error', function(err) {
+		response.on('error',function(err) {
 		// handle errors with the request itself
 			ApiDataNotReady--;
-			console.error("Error with the request: ", err.message);
+			console.error("Error with the request: ",err.message);
+			reportError("Error with the request: ",err.message,cbparam);
 		});
 	});
 }
@@ -459,6 +515,7 @@ function authcodeCallback(data) {
 		console.log("Rescue ceredentials not valid, terminating!");
 		process.exit(1);
 	}
+	
 }
 
 function genericCallback(data,tsock) {
@@ -470,7 +527,7 @@ function dummyCallback(data,tsock) {
 	console.log(data);
 }
 
-function hierarchyCallback(data,tsock) {
+function hierarchyCallback(data) {
 	var str = "";
 	var pindex,nindex,eindex,tindex;
 	var nid = "";
@@ -481,12 +538,11 @@ function hierarchyCallback(data,tsock) {
 	if(arr[0].includes("OK") == false)			// API request not successful
 	{
 		console.log("API Request Status: "+arr[0]);
-		tsock.emit('errorResponse',arr[0]);
+		process.exit(1);
 		return;
 	}
 // line format is: 15988113 ParentID:2715315 Name:Manji Kerai Email:mkerai@logmein.com Description: some text Status:Offline Type:MasterAdministrator	
 // parse above line and convert to array of objects
-	var Hierarchy = new Array();		// Array of configured users in Rescue
 	for(var i=2;i < arr.length;i++)	// first line is OK, then blank, then the data
 	{
 		var th = new Cuser();
@@ -502,7 +558,7 @@ function hierarchyCallback(data,tsock) {
 		if(th.name.indexOf(ENVIRONMENT) != -1)
 			Hierarchy.push(th);
 	}
-	tsock.emit('hierarchyResponse',Hierarchy);
+	console.log("Hierarchy complete: "+Hierarchy.length);
 }
 
 //Session report.
@@ -517,8 +573,10 @@ function SessReportCallback(data,socket) {
 	arr = sdata.split("\n");
 	if(arr[0] !== "OK")			// API request not successful
 	{
-//		console.log("API Request Status: "+arr[0]);
-		return(socket.emit('errorResponse',arr[0]));
+		console.log("API Request: "+arr[0]);
+		clearTimeout(R2timer);		// clear the report 2 timer if running
+		reportError("API Request: "+arr[0],socket);
+		return;
 	}
 	
 	var header = arr[2];	
@@ -567,8 +625,9 @@ function SessReportCallback(data,socket) {
 			csession.sessionID = head[SIDIndex];
 			csession.sessionType = head[typeIndex];
 			tools = head[toolIndex];
-			if(tools.indexOf("RC") >= 0)			// if a remote control session
-				csession.RC = true;
+			if(tools !== undefined)
+				if(tools.indexOf("RC") >= 0)			// if a remote control session
+					csession.RC = true;
 			csession.resolved = head[resIndex];
 			csession.name = head[tnameIndex];
 			csession.department = head[tgroupIndex];
@@ -585,8 +644,8 @@ function SessReportCallback(data,socket) {
 	console.log("No. Chat sessions: "+Report1and2.length);
 	// now get CS survey data and tag on to this array
 	getApiData("setReportArea.aspx","area="+CSURVEY_REPORT,dummyCallback,socket);
-	sleep(100);
-	FirstReportNotReady = false;
+	sleep(500);
+	FirstReportReady = true;
 }
 
 //Customer survey report - amend to report 1 and 2 data.
@@ -602,7 +661,7 @@ function CSDataCallback(data,socket) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 		console.log("API Request Status: "+arr[0]);
-		return(socket.emit('errorResponse',arr[0]));
+		return(reportError(arr[0],socket));
 	}
 	
 	var header = arr[2];	
@@ -650,6 +709,7 @@ function CSDataCallback(data,socket) {
 	}
 	console.log("No. Surveys: "+scount);
 	socket.emit('Report12Response',Report1and2);
+	ReportInProgress = false;
 }
 
 //Customer survey report standalone.
@@ -663,7 +723,7 @@ function CSReportCallback(data,socket) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 		console.log("API Request Status: "+arr[0]);
-		return(socket.emit('errorResponse',arr[0]));
+		return(reportError(arr[0],socket));
 	}
 	
 	var header = arr[2];	
@@ -707,6 +767,7 @@ function CSReportCallback(data,socket) {
 	}
 	console.log("No. Surveys: "+CSurveys.length);
 	socket.emit('CSReportResponse',CSurveys);
+	ReportInProgress = false;
 }
 
 //Technician survey report.
@@ -720,7 +781,7 @@ function TSReportCallback(data,socket) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 //		console.log("API Request Status: "+arr[0]);
-		return(socket.emit('errorResponse',arr[0]));
+		return(reportError(arr[0],socket));
 	}
 	
 	var header = arr[2];	
@@ -764,6 +825,7 @@ function TSReportCallback(data,socket) {
 	}
 	console.log("No. Surveys: "+TSurveys.length);
 	socket.emit('TSReportResponse',TSurveys);
+	ReportInProgress = false;
 }
 
 //Performance report.
@@ -777,7 +839,7 @@ function Report3Callback(data,socket) {
 	if(arr[0] !== "OK")			// API request not successful
 	{
 //		console.log("API Request Status: "+arr[0]);
-		return(socket.emit('errorResponse',arr[0]));
+		return(reportError(arr[0],socket));
 	}
 	
 	var header = arr[2];	
@@ -827,15 +889,102 @@ function Report3Callback(data,socket) {
 	}
 	console.log("No. Technicians: "+Report3.length);
 	socket.emit('Report3Response',Report3);
+	ReportInProgress = false;
 }
+
+//Auto report which is actually the Performance report.
+//When converted to array first element is OK second is blank and third is the header
+function autoReportCallback(data,rsocket) {
+	var technameIndex,techIDIndex,nosessIndex,pickupIndex,tltimeIndex,wtimeIndex,durationIndex,tatimeIndex,twtimeIndex;
+	var sdata = data.toString();
+	var arr = new Array();
+	var head = new Array();
+	arr = sdata.split("\n");
+	if(arr[0] !== "OK")			// API request not successful
+	{
+//		console.log("API Request Status: "+arr[0]);
+		return(reportError(arr[0],rsocket));
+	}
+	
+	var header = arr[2];	
+//	console.log("header: "+header);
+	head = header.split("|");
+	for(var i in head)
+	{
+		if(head[i] == "Technician Name")
+			technameIndex = i;
+		else if(head[i] == "Technician ID")
+			techIDIndex = i;
+		else if(head[i] == "Number of Sessions")
+			nosessIndex = i;
+		else if(head[i] == "Total Login Time")
+			tltimeIndex = i;
+		else if(head[i].includes("Pick-up"))
+			pickupIndex = i;
+		else if(head[i].includes("Duration"))
+			durationIndex = i;
+		else if(head[i].includes("Average Work"))
+			wtimeIndex = i;	
+		else if(head[i].includes("Total Active"))
+			tatimeIndex = i;	
+		else if(head[i].includes("Total Work"))
+			twtimeIndex = i;	
+	}
+	
+	AutoReport = new Array();
+//		console.log("No. of entries:"+arr.length);
+	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
+	{	
+		head = arr[i].split("|");
+		if(typeof head[techIDIndex] != 'undefined')
+		{
+			var tperf = new TPerformance();
+			tperf.techName = head[technameIndex];
+			tperf.techID = head[techIDIndex];
+			tperf.noOfSessions = head[nosessIndex];
+			tperf.totalTime = head[tltimeIndex];
+			tperf.avgPickup = head[pickupIndex];
+			tperf.avgDuration = head[durationIndex];
+			tperf.avgWorkTime = head[wtimeIndex];
+			tperf.totalActiveTime = head[tatimeIndex];
+			tperf.totalWorkTime = head[twtimeIndex];
+			AutoReport.push(tperf);		// add to list
+		}
+	}
+	console.log("Auto report done: "+AutoReport.length);
+	rsocket.emit('AutoReportResponse',AutoReport);
+	ReportInProgress = false;
+}
+
 
 function removeSocket(id, evname) {
 	console.log("Socket "+evname+" at "+ new Date().toString());
 	LoggedInUsers[id] = undefined;		// remove from list of valid users
 }
 
+function sleep(milliseconds) {
+	var start = new Date().getTime();
+	for(var i = 0; i < 1e7; i++)
+	{
+		if((new Date().getTime() - start) > milliseconds)
+		{
+			break;
+		}
+	}
+}
+
 // validates string is format MM/DD/YYYY with year being 20xxx
 function validateDate(testdate) {
     var date_regex = /^(0[1-9]|1[0-2])\/(0[1-9]|1\d|2\d|3[01])\/(20)\d{2}$/ ;
     return date_regex.test(testdate);
+}
+
+function getFormattedDate() {
+	var date = new Date();
+	var year = date.getFullYear();
+	var month = (1 + date.getMonth()).toString();
+	month = month.length > 1 ? month : '0' + month;
+	var day = date.getDate().toString();
+	day = day.length > 1 ? day : '0' + day;
+	return month + '/' + day + '/' + year;
 }
