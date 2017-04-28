@@ -55,7 +55,7 @@ var Report12 = function() {
 		this.sessionID = 0;		//unique
 		this.sessionType = 0;
 		this.RC = false;	// incident tools used - e.g. remote control sessions
-		this.resolved = false;	// how many got resolved using chat without an incident
+		this.resolved = "";	// how many got resolved using chat without an incident
 		this.name = "";		// agent name
 		this.department = "";	// agent's dept
 		this.start = 0;	// start time
@@ -261,6 +261,22 @@ io.on('connection', function(socket){
 				setReport(PERF_REPORT,data,socket);
 				var params = "node="+data.id+"&nodetype="+data.idtype;
 				getReport1(params,Report3Callback,socket);
+			}
+		}
+	});
+	
+	// customer survey report only
+	socket.on('CSReportRequest',function(data){
+		if(isLoggedIn(socket) && checkReportStatus(socket))
+		{
+			ApiDataNotReady = 0;
+			debugLog("params",data);
+			if(isValidParams(data,socket))
+			{
+				ReportInProgress = true;
+				setReport(CSURVEY_REPORT,data,socket);
+				var params = "node="+data.id+"&nodetype="+data.idtype;
+				getReport1(params,CSDataCallback,socket);
 			}
 		}
 	});
@@ -603,8 +619,8 @@ function SessReportCallback(data,socket) {
 			typeIndex = i;
 		else if(head[i] == "Incident Tools Used")
 			toolIndex = i;
-		else if(head[i] == "Resolved Unresolved")
-			resIndex = i;
+//		else if(head[i] == "Resolved Unresolved")	// not used for accenture, use the field in CS report
+//			resIndex = i;
 		else if(head[i] == "Waiting Time")
 			waitIndex = i;	
 		else if(head[i] == "Total Time")
@@ -633,7 +649,7 @@ function SessReportCallback(data,socket) {
 			if(typeof tools !== 'undefined')
 				if(tools.indexOf("RC") >= 0)			// if a remote control session
 					csession.RC = true;
-			csession.resolved = head[resIndex];
+//			csession.resolved = head[resIndex];
 			csession.name = head[tnameIndex];
 			csession.department = head[tgroupIndex];
 			csession.start = head[startIndex];
@@ -656,8 +672,8 @@ function SessReportCallback(data,socket) {
 //Customer survey report - amend to report 1 and 2 data.
 //When converted to array first element is OK second is blank and third is the header
 function CSDataCallback(data,socket) {
-	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex,commentIndex;
-	var sid,rating,comment;
+	var sourceIndex,SIDIndex,dateIndex,usernameIndex,rateIndex,technameIndex,techIDIndex,commentIndex,resIndex;
+	var sid,rating,comment,resolved;
 	var scount = 0;
 	var sdata = data.toString();
 	var arr = new Array();
@@ -670,7 +686,7 @@ function CSDataCallback(data,socket) {
 	}
 	
 	var header = arr[2];	
-//	console.log("header: "+header);
+	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
 	{
@@ -680,11 +696,13 @@ function CSDataCallback(data,socket) {
 			SIDIndex = i;
 		else if(head[i] == "Date")
 			dateIndex = i;
-		else if(head[i] == "End user's First name")
+		else if(head[i] == "Name")
 			usernameIndex = i;
-		else if(head[i].includes("Please rate your product"))
+		else if(head[i].includes("problem?"))
+			resIndex = i;
+		else if(head[i].includes("Please rate your"))
 			rateIndex = i;
-		else if(head[i].includes("comments"))
+		else if(head[i].includes("comments?"))
 			commentIndex = i;
 		else if(head[i] == "Technician Name")
 			technameIndex = i;
@@ -695,10 +713,12 @@ function CSDataCallback(data,socket) {
 //		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
+		console.log(arr[i]+"\n");
 		var head = arr[i].split("|");
 		if(typeof head[SIDIndex] != 'undefined')
 		{
 			sid = head[SIDIndex];
+			resolved = head[resIndex];
 			rating = head[rateIndex];
 			comment = head[commentIndex];
 			scount++;
@@ -706,6 +726,7 @@ function CSDataCallback(data,socket) {
 			{
 				if(sid == Report1and2[j].sessionID)
 				{
+					Report1and2[j].resolved = resolved;
 					Report1and2[j].surveyScore = rating;
 					Report1and2[j].surveyComment = comment;
 				}
