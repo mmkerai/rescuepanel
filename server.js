@@ -165,6 +165,12 @@ app.get('/favicon.ico', function(req, res){
 app.get('/lmilogo.png', function(req, res){
 	res.sendFile(__dirname + '/lmilogo.png');
 });
+app.get('/manji.html', function(req, res){
+	res.sendFile(__dirname + '/manji.html');
+});
+app.get('/manji.js', function(req, res){
+	res.sendFile(__dirname + '/manji.js');
+});
 app.get('/index.js', function(req, res){
 	res.sendFile(__dirname + '/index.js');
 });
@@ -342,7 +348,7 @@ function initialiseGlobals() {
 function doStartOfDay() {
 	initialiseGlobals();	// zero all memory
 	getHierachy();
-	AutoRtimer = setInterval(runAutoReport,30000);
+	AutoRtimer = setInterval(runAutoReport,60000);	// run every minute
 }
 
 // This runs forever but only when no other report is running as the API only allows single report capability
@@ -713,7 +719,7 @@ function CSDataCallback(data,socket) {
 //		console.log("No. of entries:"+arr.length);
 	for(var i=3;i < arr.length;i++)	// first line is OK, then blank, then header line
 	{
-		console.log(arr[i]+"\n");
+//		console.log(arr[i]+"\n");
 		var head = arr[i].split("|");
 		if(typeof head[SIDIndex] != 'undefined')
 		{
@@ -752,7 +758,7 @@ function CSReportCallback(data,socket) {
 		return(reportError(arr[0],socket));
 	}
 	
-	var header = arr[2];	
+	var header = arr[2];
 //	console.log("header: "+header);
 	head = header.split("|");
 	for(var i in head)
