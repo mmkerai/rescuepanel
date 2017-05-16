@@ -2,8 +2,8 @@ var socket = io.connect();
 
 // Globals
 grouped = false;
-selectedEnv = "1644565702"; //default env for reports
-selectedType = "CHANNEL";	// default type
+selectedEnv = "7539518"; //default env for reports
+selectedType = "NODE";	// default type
 
 function getAccount() {
   socket.emit('accountRequest', "");
@@ -27,21 +27,36 @@ function notify(style, txt) {
   });
 }
 
-function download12() {
-  $("#mainreport12").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - SessionSurvey.csv");
+function joinRoom() {
+	socket.emit('join room',"auto_perf_report");
 }
 
-function download3() {
-  $("#mainreport3").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - Performance.csv");
+function leaveRoom() {
+	socket.emit('leave room',"auto_perf_report");
+}
+
+function download() {
+			var s=$("input[name='reportname']").val(); 
+			switch (s){			
+			case ("Report12Request"):
+			$("#mainreport12").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - SessionSurvey.csv");
+			break;
+		  case ("Report3Request"):
+			$("#mainreport3").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - Performance.csv");
+			break;
+			case ("AutoPerformance"):
+			$("#autoreport").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - Performance.csv");
+			break;
+			}  
 }
 
 function showLoginForm() {
   $("#hierarchy").hide(1000);
   $("#mainreport3").hide(1000);
   $("#mainreport12").hide(1000);
+	$("#autoreport").hide(1000);
   $("#groupoption").hide();
-  $("#download12").hide();
-  $("#download3").hide();
+  $("#download").hide();
   $("#login").show(1000);
 }
 
@@ -71,9 +86,9 @@ function getHierarchy() {
   $("#login").hide(1000);
   $("#mainreport12").hide(1000);
   $("#mainreport3").hide(1000);
+	$("#autoreport").hide(1000);
   $("#groupoption").hide();
-  $("#download12").hide();
-  $("#download3").hide();
+  $("#download").hide();
   $("#hierarchy").toggle(1000, function() {
     if ($(this).css("display") == "block") {
       socket.emit('hierarchyRequest', "");
@@ -85,11 +100,6 @@ function getHierarchy() {
 function getReport() {
   $("#login").hide(1000);
   $("#hierarchy").hide(1000);
-  $("#mainreport3").hide(1000);
-  $("#mainreport12").hide(1000);
-  $("#groupoption").hide();
-  $("#download12").hide();
-  $("#download3").hide();
   var nid = selectedEnv; //$('#nodeID').val();
   var reptype = selectedType; //$("input[name='reporttype']:checked").val();
   var repname = $("input[name='reportname']:checked").val();
@@ -178,25 +188,72 @@ $(function() {
     notify("info", "Click on an ID to fill it in the field");
     $("#hierarchy").tabulator("setData", data);
   });
+	
+	
+	$("input[name='reportname']").change(function(){
+			var s=$(this).val(); 
+			switch (s){			
+			case ("Report12Request"):
+			  leaveRoom();
+				$(".dateinputs").show();
+				$("#report").show();
+				$("#mainreport12").show();
+				$("#download").show();
+				$("#groupoption").show();
+				
+				$("#mainreport3").hide();
+				$("#autoreport").hide();
+			  $(".roombuttons").hide();
+			break;
+		  case ("Report3Request"):
+			  leaveRoom();
+				$(".dateinputs").show();
+				$("#report").show();
+				$("#download").show();
+				$("#mainreport3").show();				
+
+				$("#mainreport12").hide();
+				$("#autoreport").hide();
+				$("#groupoption").hide();
+			  $(".roombuttons").hide();				
+			break;
+			case ("AutoPerformance"):
+			  joinRoom();
+				$(".roombuttons").show();
+				$("#download").show();	
+				$("#autoreport").show();
+				$("#spinner").show();
+				
+				
+				$(".dateinputs").hide();
+				$("#report").hide();
+				$("#mainreport12").hide();
+				$("#mainreport3").hide();				
+				$("#groupoption").hide();
+			break;
+      default:
+			break;
+      }			
+	});
+	
   socket.on('Report12Response', function(data) { // this returns an array of objects
     for (var i in data) {
       if (data[i].surveyScore == "") data[i].surveyScore = "0";
+			if (data[i].resolved=="") data[i].resolved = "0";
     }
     $("#spinner").hide();
-    $("#mainreport12").show();
-    $("#groupoption").show();
-    $("#download12").show();
-    $("#download3").hide();
-		$("#mainreport12").tabulator("setData", data);
+  	$("#mainreport12").tabulator("setData", data);
   });
+	
   socket.on('Report3Response', function(data) { // this returns an array of objects
     $("#spinner").hide();
-    $("#mainreport3").show();
-    $("#download12").hide();
-    $("#download3").show();
     $("#mainreport3").tabulator("setData", data);
   });
 	
+	socket.on('AutoReportResponse', function(data) { // this returns an array of objects
+    $("#spinner").hide();
+    $("#autoreport").tabulator("setData", data);
+  });	
 	
   //datepickers
 	
@@ -263,7 +320,7 @@ $(function() {
     ],
   });
   $("#mainreport12").tabulator({
-		height: Math.round($(window).height()*0.82),
+		height: Math.round($(window).height()*0.83),
     fitColumns: true, //fit columns to width of table (optional)
     //dateFormat: "dd/mm/yyyy",
     sortBy: 'Name', // when data is loaded into the table, sort it by name
@@ -290,13 +347,14 @@ $(function() {
         align: "left",
         headerFilter: true
       },
+			/*
       {
         title: "Department",
         field: "department",
         sorter: "string",
         align: "left",
         headerFilter: true
-      },
+      },*/
       {
         title: "Start",
         field: "start",
@@ -319,13 +377,13 @@ $(function() {
         align: "left",
         headerFilter: true
       },
-      {
+			{
         title: "Resolved",
         field: "resolved",
-        formatter: "tick",
-        sorter: "boolean",
-        align: "left",
-        headerFilter: true
+				sorter: "number",
+        formatter: "star",
+				formatterParams:{stars:3},
+        align: "left"
       },
       {
         title: "Wait Time",
@@ -351,16 +409,18 @@ $(function() {
         sorter: "string",
         align: "left"
       },
+			/*
       {
         title: "Wrap Time",
         field: "wrapTime",
         sorter: "string",
         align: "left"
-      },
+      },*/
       {
         title: "Score",
         field: "surveyScore",
         formatter: "star",
+				sorter: "number",
         align: "left"
       },
       {
@@ -372,7 +432,72 @@ $(function() {
     ],
   });
   $("#mainreport3").tabulator({
-    height: "52em", // set height of table (optional)
+    height: Math.round($(window).height()*0.83), // set height of table (optional)
+    fitColumns: true, //fit columns to width of table (optional)
+    sortBy: 'noOfSessions', // when data is loaded into the table, sort it by name
+    sortDir: 'desc',
+    columns: [ //Define Table Columns
+      {
+        title: "Tech Name",
+        field: "techName",
+        sorter: "string",
+        align: "left",
+        headerFilter: true
+      },
+      {
+        title: "Tech ID",
+        field: "techID",
+        sorter: "number",
+        align: "right",
+        headerFilter: true
+      },
+      {
+        title: "Sessions",
+        field: "noOfSessions",
+        sorter: "number",
+        align: "right",
+        headerFilter: true
+      },
+      {
+        title: "Total Login Time",
+        field: "totalTime",
+        sorter: "string",
+        align: "left"
+      },
+      {
+        title: "Average Pickup Time",
+        field: "avgPickup",
+        sorter: "string",
+        align: "left"
+      },
+      {
+        title: "Average Duration",
+        field: "avgDuration",
+        sorter: "string",
+        align: "left"
+      },
+      {
+        title: "Average Work Time",
+        field: "avgWorkTime",
+        sorter: "string",
+        align: "left"
+      },
+      {
+        title: "Total Active Time",
+        field: "totalActiveTime",
+        sorter: "string",
+        align: "left"
+      },
+      {
+        title: "Total Work Time",
+        field: "totalWorkTime",
+        sorter: "string",
+        align: "left"
+      }
+    ],
+  });
+	  $("#autoreport").tabulator({
+    height: Math.round($(window).height()*0.83), // set height of table (optional)
     fitColumns: true, //fit columns to width of table (optional)
     sortBy: 'noOfSessions', // when data is loaded into the table, sort it by name
     sortDir: 'desc',
