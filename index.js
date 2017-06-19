@@ -36,7 +36,7 @@ function leaveRoom() {
 }
 
 function download() {
-			var s=$("input[name='reportname']").val(); 
+			var s = $("input[name='reportname']:checked").val(); 
 			switch (s){			
 			case ("Report12Request"):
 			$("#mainreport12").tabulator("download", "csv", moment().format("YYYY-MM-DD hh.mm.ss") + " - SessionSurvey.csv");
